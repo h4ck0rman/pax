@@ -14,7 +14,7 @@ import math
 import random
 from pathlib import Path
 
-WIDTH, HEIGHT = 600, 900
+WIDTH, HEIGHT = 1200, 900
 OUTPUT = Path(__file__).resolve().parents[1] / 'src' / 'auth' / 'VineArt.tsx'
 SEED = 20260921
 
@@ -95,7 +95,7 @@ def leaves_along(points: list[Point], scale: float, leaves: list[str]) -> None:
             leaves.append(
                 f'<path d="{leaf_path(length, width)}" '
                 f'transform="translate({x:.1f} {y:.1f}) rotate({angle:.1f})" '
-                f'opacity="{fade(y, 0.05, 0.34)}"/>'
+                f'opacity="{fade(y, 0.025, 0.14)}"/>'
             )
 
 
@@ -106,15 +106,15 @@ def build() -> str:
     curls: list[str] = []
 
     # Vines rise from below the frame so no stem appears to start in mid air.
-    for index in range(9):
-        base_x = WIDTH * (index + 0.5) / 9 + random.uniform(-26, 26)
+    for index in range(15):
+        base_x = WIDTH * (index + 0.5) / 15 + random.uniform(-26, 26)
         top_y = HEIGHT * random.uniform(0.10, 0.54)
         amplitude = random.uniform(34, 86)
         phase = random.uniform(0, math.tau)
         points = stem_points(base_x, top_y, amplitude, phase, steps=random.randint(12, 17))
 
         stems.append(
-            f'<path d="{smooth_path(points)}" opacity="{fade(HEIGHT * 0.62, 0.07, 0.26)}"/>'
+            f'<path d="{smooth_path(points)}" opacity="{fade(HEIGHT * 0.62, 0.03, 0.10)}"/>'
         )
         leaves_along(points, 1.0, leaves)
 
@@ -123,7 +123,7 @@ def build() -> str:
             direction = 1 if math.cos(phase) >= 0 else -1
             curls.append(
                 f'<path d="{tendril(tip[0], tip[1], direction)}" '
-                f'opacity="{fade(tip[1], 0.05, 0.2)}"/>'
+                f'opacity="{fade(tip[1], 0.02, 0.08)}"/>'
             )
 
         # A side shoot, so the vines are not nine parallel lines.
@@ -140,7 +140,7 @@ def build() -> str:
             shoot = [(x, min(y, node[1])) for x, y in shoot]
             shoot[0] = node
             stems.append(
-                f'<path d="{smooth_path(shoot)}" opacity="{fade(node[1], 0.05, 0.18)}"/>'
+                f'<path d="{smooth_path(shoot)}" opacity="{fade(node[1], 0.02, 0.07)}"/>'
             )
             leaves_along(shoot, 0.74, leaves)
 

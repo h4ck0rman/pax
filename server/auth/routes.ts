@@ -28,6 +28,8 @@ import {
 } from './store.js';
 
 export const CALLBACK_PATH = '/api/auth/google/callback';
+/** Where a failed sign-in is sent back to, so the reader lands on the button. */
+export const SIGN_IN_PAGE = '/login';
 export const START_PATH = '/api/auth/google/start';
 
 export type AuthRequest = {
@@ -114,7 +116,7 @@ export async function authenticate(
 async function startSignIn(deps: AuthDeps, request: AuthRequest): Promise<AuthResponse> {
   const client = deps.config.google;
   const redirectUri = callbackUri(deps.config);
-  if (!client || !redirectUri) return redirect('/?error=config');
+  if (!client || !redirectUri) return redirect(`${SIGN_IN_PAGE}?error=config`);
 
   const state = randomToken();
   const nonce = randomToken();
@@ -135,7 +137,9 @@ async function startSignIn(deps: AuthDeps, request: AuthRequest): Promise<AuthRe
 
 async function completeSignIn(deps: AuthDeps, request: AuthRequest): Promise<AuthResponse> {
   const failure = (reason: string) =>
-    redirect(`/?error=${reason}`, { 'Set-Cookie': clearCookie(OAUTH_COOKIE, request.secure) });
+    redirect(`${SIGN_IN_PAGE}?error=${reason}`, {
+      'Set-Cookie': clearCookie(OAUTH_COOKIE, request.secure),
+    });
 
   const client = deps.config.google;
   const redirectUri = callbackUri(deps.config);

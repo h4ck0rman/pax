@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BookOpen, Clock3, LogOut } from 'lucide-react';
 import QuestionBank from './questions/QuestionBank';
 import PracticeTest from './practice/PracticeTest';
+import LandingPage from './landing/LandingPage';
 import LoginPage from './auth/LoginPage';
 import LegalPage, { type LegalDocument } from './legal/LegalPage';
 import { useAuth } from './auth/AuthProvider';
@@ -13,11 +14,14 @@ const TITLES: Record<Section, string> = {
   test: 'Practice test',
 };
 
-/** The only two paths the app serves besides the root. Both are public, so the
- *  policies can be read before signing in and reached by Google's reviewers. */
-function legalDocument(): LegalDocument | null {
-  if (typeof window === 'undefined') return null;
-  const path = window.location.pathname.replace(/\/+$/, '');
+/** The paths the app serves besides the root, all public. The policies must be
+ *  readable before signing in, and reachable by Google's reviewers. */
+function currentPath(): string {
+  if (typeof window === 'undefined') return '/';
+  return window.location.pathname.replace(/\/+$/, '') || '/';
+}
+
+function legalDocument(path: string): LegalDocument | null {
   if (path === '/terms') return 'terms';
   if (path === '/privacy') return 'privacy';
   return null;
@@ -34,10 +38,14 @@ export default function App() {
   // Choosing the current section again restarts it, by remounting the feature.
   const [restarts, setRestarts] = useState(0);
 
-  const legal = legalDocument();
+  const path = currentPath();
+  const legal = legalDocument(path);
   if (legal) return <LegalPage document={legal} />;
 
-  if (auth.status === 'signed-out') return <LoginPage reason={signInReason()} />;
+  if (auth.status === 'signed-out') {
+    // /login is the page with the button; / is the landing page.
+    return path === '/login' ? <LoginPage reason={signInReason()} /> : <LandingPage />;
+  }
 
   function choose(next: Section) {
     setSection(next);

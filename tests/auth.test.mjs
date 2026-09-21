@@ -461,7 +461,7 @@ test('sign-in start carries PKCE and a state cookie', async () => {
     { config: config(), store: fakeStore() },
     request({ path: '/api/auth/google/start' }),
   );
-  assert.equal(unconfigured.headers.Location, '/?error=config');
+  assert.equal(unconfigured.headers.Location, '/login?error=config');
 });
 
 test('the callback refuses anything it cannot prove, and never leaks a session', async () => {
@@ -492,7 +492,7 @@ test('the callback refuses anything it cannot prove, and never leaks a session',
 
   const noSession = result => {
     assert.equal(result.status, 302);
-    assert.match(result.headers.Location, /^\/\?error=/);
+    assert.match(result.headers.Location, /^\/login\?error=/);
     const cookies = [result.headers['Set-Cookie']].flat().filter(Boolean).join(' ');
     assert.equal(cookies.includes(`${SESSION_COOKIE}=ey`), false);
   };
@@ -618,7 +618,7 @@ test('sign-in refuses to start when no origin is pinned', async () => {
     { config: unpinned, store: fakeStore() },
     request({ path: '/api/auth/google/start' }),
   );
-  assert.equal(start.headers.Location, '/?error=config');
+  assert.equal(start.headers.Location, '/login?error=config');
 
   const callback = await handleAuthRequest(
     { config: unpinned, store: fakeStore() },
@@ -627,5 +627,5 @@ test('sign-in refuses to start when no origin is pinned', async () => {
       query: new URLSearchParams({ code: 'c', state: 's' }),
     }),
   );
-  assert.equal(callback.headers.Location, '/?error=config');
+  assert.equal(callback.headers.Location, '/login?error=config');
 });

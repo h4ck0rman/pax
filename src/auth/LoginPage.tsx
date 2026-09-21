@@ -1,4 +1,4 @@
-import { BookOpen, Clock3, ClipboardCopy } from 'lucide-react';
+import { ArrowLeft, BookOpen, ClipboardCopy, Clock3 } from 'lucide-react';
 import GoogleMark from './GoogleMark';
 import VineArt from './VineArt';
 
@@ -43,6 +43,10 @@ export default function LoginPage({ reason }: { reason: string | null }) {
 
       <main className="login-main">
         <div className="login-column">
+          <a className="login-back link" href="/">
+            <ArrowLeft size={15} aria-hidden="true" /> Back
+          </a>
+
           <span className="login-logo">
             pax<span aria-hidden="true">.</span>
           </span>
@@ -61,7 +65,7 @@ export default function LoginPage({ reason }: { reason: string | null }) {
 
           {/* A plain link, so the browser performs the redirect itself and no
               third-party script is loaded into the page. */}
-          <a className="google-button" href="/api/auth/google/start">
+          <a className="google-button login-google" href="/api/auth/google/start">
             <GoogleMark />
             <span>Continue with Google</span>
           </a>

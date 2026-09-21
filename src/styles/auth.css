@@ -1,4 +1,5 @@
-/* Sign-in: a decorative panel beside a narrow column holding the one action. */
+/* Sign-in page: a decorative panel beside a narrow column holding the one
+   action. Reached from the landing page, and from a failed sign-in. */
 .login {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -22,15 +23,6 @@
   pointer-events: none;
 }
 
-.vine-art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  /* Dissolve the tops so the vines do not end on a hard line. */
-  mask-image: linear-gradient(to top, black 0%, rgb(0 0 0 / 82%) 46%, transparent 88%);
-}
-
 .login-main {
   display: grid;
   place-items: center;
@@ -43,6 +35,10 @@
   max-width: 25rem;
 }
 
+.login-back {
+  margin-bottom: var(--space-6);
+}
+
 .login-logo {
   display: block;
   font-size: 40px;
@@ -53,7 +49,7 @@
 }
 
 .login-title {
-  margin-top: var(--space-6);
+  margin-top: var(--space-5);
   font-size: var(--text-2xl);
   line-height: 1.2;
 }
@@ -75,38 +71,9 @@
   line-height: 1.5;
 }
 
-/* Google's guidance: their mark unaltered, an approved label, a light surface
-   with a visible edge, and a generous target. */
-.google-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
+.login-google {
   width: 100%;
-  min-height: 46px;
   margin-top: var(--space-6);
-  padding: var(--space-3) var(--space-5);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: var(--text-md);
-  font-weight: 700;
-  text-decoration: none;
-  transition:
-    background var(--duration) var(--ease),
-    border-color var(--duration) var(--ease),
-    box-shadow var(--duration) var(--ease);
-}
-
-.google-button:hover {
-  background: var(--surface);
-  border-color: var(--ink);
-  box-shadow: var(--shadow-card);
-}
-
-.google-mark {
-  flex-shrink: 0;
 }
 
 .login-legal {
@@ -172,8 +139,48 @@
 
   .login-main {
     place-items: start center;
-    padding-top: var(--space-9);
+    padding-top: var(--space-8);
   }
+}
+
+/* Artwork shared by the landing page bands. */
+.vine-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Dissolve the tops so the vines do not end on a hard line. */
+  mask-image: linear-gradient(to top, black 0%, rgb(0 0 0 / 82%) 46%, transparent 88%);
+}
+
+/* Google's guidance: their mark unaltered, an approved label, a light surface
+   with a visible edge, and a generous target. */
+.google-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 46px;
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    border-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.google-button:hover {
+  border-color: var(--ink);
+  box-shadow: var(--shadow-card);
+}
+
+.google-mark {
+  flex-shrink: 0;
 }
 
 /* ---- Signed-in account controls in the header ---- */

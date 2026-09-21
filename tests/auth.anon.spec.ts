@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test('a visitor without a session sees the sign-in page and no questions', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { level: 1, name: 'A little space to learn.' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Good Luck Harpreet' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible();
 
   // None of the app is reachable.
   await expect(page.locator('.question-stem')).toHaveCount(0);
@@ -46,8 +46,9 @@ test('a forged or tampered session cookie is refused', async ({ page, request })
     expect(response.status(), value.slice(0, 20)).toBe(401);
   }
 
+  // A forged cookie leaves you signed out, so the landing page is what loads.
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Good Luck Harpreet' })).toBeVisible();
 });
 
 test('starting sign-in sets a single-use cookie and redirects to Google', async ({ request }) => {
@@ -81,7 +82,8 @@ test('the callback refuses a mismatched state and never sets a session', async (
   });
 
   expect(response.status()).toBe(302);
-  expect(response.headers().location).toMatch(/^\/\?error=/);
+  // A failed sign-in lands on the page that holds the button, not the landing page.
+  expect(response.headers().location).toMatch(/^\/login\?error=/);
   expect(response.headers()['set-cookie'] ?? '').not.toContain('pax_session=ey');
 });
 
@@ -91,7 +93,7 @@ test('the sign-in page links the policies and loads no third-party resource', as
     if (!sent.url().startsWith('http://127.0.0.1:5173')) external.push(sent.url());
   });
 
-  await page.goto('/');
+  await page.goto('/login');
 
   await expect(page.getByRole('link', { name: 'terms of use' })).toHaveAttribute('href', '/terms');
   await expect(page.getByRole('link', { name: 'privacy policy' })).toHaveAttribute(
@@ -119,14 +121,49 @@ test('the policies are readable without signing in', async ({ page }) => {
 test('the landing page describes what Pax offers', async ({ page }) => {
   await page.goto('/');
 
-  const features = page.locator('.login-features li');
+  const features = page.locator('.feature-cards li');
   await expect(features).toHaveCount(3);
   await expect(features.nth(0)).toContainText('Question bank');
   await expect(features.nth(1)).toContainText('Practice tests');
   await expect(features.nth(2)).toContainText('Export for marking');
 
+  await expect(page.locator('.steps li')).toHaveCount(3);
+  await expect(page.locator('.intro-stats dt').first()).toHaveText('5,374');
+
   // The artwork is decorative, inline, and hidden from assistive technology.
-  const vines = page.locator('svg.vine-art');
+  const vines = page.locator('svg.vine-art').first();
   await expect(vines).toHaveAttribute('aria-hidden', 'true');
   expect(await vines.locator('path').count()).toBeGreaterThan(50);
+});
+
+test('the landing page sends you to the sign-in page, which starts Google', async ({ page }) => {
+  await page.goto('/');
+
+  // Top right of the header, on the hero.
+  await expect(page.locator('.hero-top').getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+    'href',
+    '/login',
+  );
+  // Google's mark belongs only on a control that actually starts Google sign-in.
+  await expect(page.locator('svg.google-mark')).toHaveCount(0);
+  await expect(page.locator('.question-stem')).toHaveCount(0);
+
+  await page.goto('/login');
+
+  await expect(page.getByRole('heading', { level: 1, name: 'A little space to learn.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Continue with Google' })).toHaveAttribute(
+    'href',
+    '/api/auth/google/start',
+  );
+  await expect(page.locator('.login-features li')).toHaveCount(3);
+  await expect(page.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/');
+  // There is no password to type anywhere.
+  await expect(page.locator('input')).toHaveCount(0);
+});
+
+test('a refused account is told so on the sign-in page', async ({ page }) => {
+  await page.goto('/login?error=not_allowed');
+
+  await expect(page.getByRole('alert')).toContainText('does not have access');
+  await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
 });
