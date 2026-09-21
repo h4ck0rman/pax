@@ -1,0 +1,198 @@
+/* Sign-in: a decorative panel beside a narrow column holding the one action. */
+.login {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100dvh;
+}
+
+.login-panel {
+  position: relative;
+  overflow: hidden;
+  background: var(--ink);
+}
+
+/* A mosaic that thins out as it rises, drawn with gradients so the page needs
+   no image request and the strict policy stays intact. */
+.login-panel-mosaic {
+  position: absolute;
+  inset: 0;
+  /* A scattered tile, inlined as a data URI so nothing is fetched. The strict
+     policy allows data URIs for images, which is what a CSS background is. */
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22160%22%20height%3D%22160%22%20fill%3D%22%23F0EBD6%22%3E%3Crect%20x%3D%2210%22%20y%3D%220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%2210%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%2210%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2230%22%20y%3D%2220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22110%22%20y%3D%2220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%2220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%2220%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%2230%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2220%22%20y%3D%2230%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2230%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22100%22%20y%3D%2230%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%22150%22%20y%3D%2230%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%2240%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%2240%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%220%22%20y%3D%2250%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2220%22%20y%3D%2250%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2230%22%20y%3D%2250%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%2250%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2280%22%20y%3D%2250%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%22130%22%20y%3D%2250%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%220%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2230%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2280%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%22100%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22110%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%2260%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2220%22%20y%3D%2270%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22110%22%20y%3D%2270%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%2270%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2280%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%2280%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%2280%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%22130%22%20y%3D%2280%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2220%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2290%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22110%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22130%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%2290%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%220%22%20y%3D%22100%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%22100%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2290%22%20y%3D%22100%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%22100%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2220%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2230%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2280%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%22100%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22150%22%20y%3D%22110%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%220%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2230%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%2280%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22110%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22150%22%20y%3D%22120%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%2230%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2280%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2290%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22100%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22150%22%20y%3D%22130%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%220%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2280%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2290%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22100%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22130%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%22150%22%20y%3D%22140%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2220%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%2230%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%2250%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.05%22%2F%3E%3Crect%20x%3D%2290%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.12%22%2F%3E%3Crect%20x%3D%22100%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22110%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.08%22%2F%3E%3Crect%20x%3D%22130%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.26%22%2F%3E%3Crect%20x%3D%22140%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3Crect%20x%3D%22150%22%20y%3D%22150%22%20width%3D%229%22%20height%3D%229%22%20opacity%3D%22.18%22%2F%3E%3C%2Fsvg%3E");
+  background-size: 160px 160px;
+  background-repeat: repeat;
+  mask-image: linear-gradient(to top, black 0%, rgb(0 0 0 / 70%) 34%, transparent 78%);
+}
+
+.login-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(70% 55% at 50% 0%, rgb(240 235 214 / 9%), transparent 70%);
+}
+
+.login-main {
+  display: grid;
+  place-items: center;
+  padding: var(--space-7) var(--shell-gutter);
+  background: var(--ground);
+}
+
+.login-column {
+  width: 100%;
+  max-width: 24rem;
+}
+
+.login-logo {
+  display: block;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.login-title {
+  margin-top: var(--space-6);
+  font-size: var(--text-2xl);
+  line-height: 1.2;
+}
+
+.login-lead {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.login-error {
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* Google's guidance: their mark unaltered, an approved label, a light surface
+   with a visible edge, and a generous target. */
+.google-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 46px;
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.google-button:hover {
+  background: var(--surface);
+  border-color: var(--ink);
+  box-shadow: var(--shadow-card);
+}
+
+.google-mark {
+  flex-shrink: 0;
+}
+
+.login-legal {
+  margin-top: var(--space-4);
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  color: var(--ink-muted);
+}
+
+.login-legal a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.login-note {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  color: var(--ink-faint);
+}
+
+/* The panel is decoration, so it is the first thing to go on a small screen. */
+@media (max-width: 860px) {
+  .login {
+    grid-template-columns: 1fr;
+  }
+
+  .login-panel {
+    display: none;
+  }
+
+  .login-main {
+    place-items: start center;
+    padding-top: var(--space-9);
+  }
+}
+
+/* ---- Signed-in account controls in the header ---- */
+.app-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.app-account-email {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 14rem;
+}
+
+@media (max-width: 900px) {
+  .app-account-email {
+    display: none;
+  }
+}
+
+/* ---- Terms and privacy ---- */
+.legal {
+  max-width: calc(var(--measure) + var(--space-7) * 2);
+}
+
+.legal-title {
+  margin-top: var(--space-3);
+  font-size: var(--text-2xl);
+}
+
+.legal-updated {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+.legal h2 {
+  margin-top: var(--space-6);
+  font-size: var(--text-lg);
+}
+
+.legal p {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.75;
+  color: var(--ink-muted);
+}

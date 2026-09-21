@@ -1,67 +1,162 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { QuestionQuery } from './question-store.js';
+import { authenticate, handleAuthRequest, type AuthDeps, type AuthRequest } from './auth/routes.js';
+import { secureCookiesFor } from './auth/config.js';
 
 type Store = { query: (params: QuestionQuery) => Promise<unknown> };
-const mime: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.otf': 'font/otf', '.woff': 'font/woff', '.woff2': 'font/woff2', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 
-/** Authentication is checked before routing or reading any response content. */
-export function createProductionServer(config: { password: string; username?: string; dist: string; store: Store }) {
-  if (!config.password || config.password.length < 16) throw new Error('APP_PASSWORD must contain at least 16 characters');
-  const username = config.username || 'pax';
-  if (username.includes(':')) throw new Error('APP_USERNAME cannot contain a colon');
-  const hash = (value: string) => createHash('sha256').update(value).digest();
-  const expected = hash(`${username}:${config.password}`);
-  const assets = new Map<string, string>();
-  function collect(directory: string, prefix = '') {
-    for (const file of readdirSync(directory, { withFileTypes: true })) {
-      if (file.name.startsWith('.')) continue;
-      const key = `${prefix}/${file.name}`;
-      if (file.isDirectory()) collect(join(directory, file.name), key);
-      else if (file.isFile() && mime[extname(file.name)]) assets.set(key, join(directory, file.name));
-    }
+const mime: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8',
+};
+
+const CSP =
+  "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; " +
+  "img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; " +
+  "form-action 'self'";
+
+function collectAssets(directory: string, prefix = '', into = new Map<string, string>()) {
+  for (const file of readdirSync(directory, { withFileTypes: true })) {
+    if (file.name.startsWith('.')) continue;
+    const key = `${prefix}/${file.name}`;
+    if (file.isDirectory()) collectAssets(join(directory, file.name), key, into);
+    else if (file.isFile() && mime[extname(file.name)]) into.set(key, join(directory, file.name));
   }
-  collect(config.dist);
+  return into;
+}
+
+function toAuthRequest(req: IncomingMessage, secure: boolean): AuthRequest {
+  const host = req.headers.host ?? 'localhost';
+  const url = new URL(req.url ?? '/', `${secure ? 'https' : 'http'}://${host}`);
+  return {
+    method: (req.method ?? 'GET').toUpperCase(),
+    path: url.pathname,
+    query: url.searchParams,
+    cookie: req.headers.cookie,
+    userAgent: req.headers['user-agent'] ?? null,
+    requestOrigin: `${secure ? 'https' : 'http'}://${host}`,
+    secure,
+  };
+}
+
+/** The app shell is public so the sign-in page can load. Question data requires
+ *  a live session, checked here and not delegated to anything upstream. */
+export function createProductionServer(config: {
+  dist: string;
+  store: Store;
+  auth: AuthDeps;
+  /** Overrides the transport decision. Only tests should need this. */
+  secure?: boolean;
+}) {
+  const assets = collectAssets(config.dist);
   if (!assets.has('/index.html')) throw new Error('Build the frontend before starting the server');
+
+  // Taken from PUBLIC_ORIGIN, not from NODE_ENV, which nothing here ever sets.
+  // Without it we are on plain local HTTP, where Secure cookies cannot be sent.
+  const secure = config.secure ?? secureCookiesFor(config.auth.config) ?? false;
+
   return createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader('Vary', 'Authorization');
+    res.setHeader('Vary', 'Cookie');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
-    if (process.env.NODE_ENV === 'production') res.setHeader('Strict-Transport-Security', 'max-age=31536000');
-    const authorization = req.headers.authorization || '';
-    const valid = authorization.length <= 4096 && /^Basic [A-Za-z0-9+/]+=*$/i.test(authorization)
-      && timingSafeEqual(hash(Buffer.from(authorization.slice(6), 'base64').toString('utf8')), expected);
-    if (!valid) {
-      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Pax", charset="UTF-8"', 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Password required.');
-      return;
-    }
+    res.setHeader('Content-Security-Policy', CSP);
+    if (secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+
     try {
-      if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405, { Allow: 'GET, HEAD' }); res.end('Method not allowed.'); return; }
-      const url = new URL(req.url || '/', 'http://localhost');
-      if (url.pathname === '/api/questions') {
-        const params = { search: (url.searchParams.get('search') || '').slice(0, 200), offset: Number(url.searchParams.get('offset') || 0), limit: Number(url.searchParams.get('limit') || 1), random: url.searchParams.get('random') === 'true' };
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        if (![params.offset, params.limit].every(Number.isSafeInteger) || params.offset < 0 || params.limit < 1 || params.limit > 100) {
-          res.statusCode = 400; res.end(JSON.stringify({ error: 'Invalid pagination' })); return;
+      const request = toAuthRequest(req, secure);
+
+      if (request.path.startsWith('/api/auth/')) {
+        const result = await handleAuthRequest(config.auth, request);
+        if (!result) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Not found' }));
+          return;
         }
-        const data = await config.store.query(params);
-        res.end(req.method === 'HEAD' ? undefined : JSON.stringify(data));
+        for (const [name, value] of Object.entries(result.headers)) res.setHeader(name, value);
+        res.statusCode = result.status;
+        res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
         return;
       }
-      const path = decodeURIComponent(url.pathname);
-      const file = assets.get(path === '/' ? '/index.html' : path);
-      if (!file) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not found.'); return; }
+
+      if (request.path === '/api/questions') {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        const signedIn = await authenticate(config.auth, request);
+        if (!signedIn) {
+          res.statusCode = 401;
+          res.end(JSON.stringify({ error: 'Sign in to read the question bank.' }));
+          return;
+        }
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+          res.writeHead(405, { Allow: 'GET, HEAD' });
+          res.end(JSON.stringify({ error: 'GET only' }));
+          return;
+        }
+        const params = {
+          search: (request.query.get('search') || '').slice(0, 200),
+          offset: Number(request.query.get('offset') || 0),
+          limit: Number(request.query.get('limit') || 1),
+          random: request.query.get('random') === 'true',
+        };
+        if (
+          ![params.offset, params.limit].every(Number.isSafeInteger) ||
+          params.offset < 0 ||
+          params.limit < 1 ||
+          params.limit > 100
+        ) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: 'Invalid pagination' }));
+          return;
+        }
+        const data = await config.store.query(params);
+        res.end(request.method === 'HEAD' ? undefined : JSON.stringify(data));
+        return;
+      }
+
+      if (request.path.startsWith('/api/')) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+        return;
+      }
+
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        res.writeHead(405, { Allow: 'GET, HEAD' });
+        res.end('Method not allowed.');
+        return;
+      }
+
+      const path = decodeURIComponent(request.path);
+      // Paths the browser routes itself fall back to the shell. Anything that
+      // looks like a file does not, so a missing asset still reports 404.
+      const looksLikeFile = /\.[a-z0-9]+$/i.test(path);
+      const file =
+        assets.get(path === '/' ? '/index.html' : path) ??
+        (looksLikeFile ? undefined : assets.get('/index.html'));
+      if (!file) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not found.');
+        return;
+      }
       res.setHeader('Content-Type', mime[extname(file)]);
-      res.end(req.method === 'HEAD' ? undefined : readFileSync(file));
+      res.end(request.method === 'HEAD' ? undefined : readFileSync(file));
     } catch {
-      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+      if (!res.headersSent) res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'The service is temporarily unavailable.' }));
     }
-  });
+  }) satisfies ReturnType<typeof createServer>;
 }
+
+export type { ServerResponse };

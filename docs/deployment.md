@@ -2,13 +2,15 @@
 
 Production: https://pax-eosin.vercel.app
 
-The deployed app has been verified to reject anonymous requests to pages, API,
-fonts, and JavaScript, and to serve 5,374 Atlas questions after authentication.
+The app shell and the policy pages are public, because the sign-in page is part
+of the shell. Every question request requires a live session.
 
 Pax uses one Vercel project: the Vite frontend, a Node function at
-`/api/questions`, and routing middleware that password-protects every path.
-MongoDB Atlas remains the database. No separate app server or auth service is
-needed. The API also validates the password independently of middleware.
+`/api/questions`, a catch-all function at `/api/auth/*`, and routing middleware
+that closes every other API path to requests without a usable session token.
+MongoDB Atlas holds the questions, the users and the sessions. No separate app
+server or auth service is needed. Each function also authorises independently of
+the middleware, so reaching one directly gains nothing.
 
 ## Required server settings
 
@@ -16,12 +18,17 @@ Set these in Vercel for both **Production** and **Preview**:
 
 - `MONGODB_URI`: Atlas connection string (secret).
 - `MONGODB_DATABASE`: `pax`.
-- `APP_USERNAME`: `pax`.
-- `APP_PASSWORD`: a separate strong application password of at least 16 characters (secret).
+- `SESSION_SECRET`: at least 32 random characters (secret). Changing it signs everyone out.
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: from the Google OAuth client (the secret is secret).
+- `ALLOWED_EMAILS` or `ALLOWED_DOMAIN`: who may sign in.
+- `PUBLIC_ORIGIN`: `https://pax-eosin.vercel.app`, so the redirect URI does not depend on the request host.
 
-Do not use `VITE_` prefixes. Missing or short passwords fail closed. The browser
-uses its native login prompt. Basic authentication does not provide a reliable
-cross-browser logout button; use a private window for an isolated session.
+Never set `DEV_AUTH_EMAIL` on a deployment; it enables a development-only
+sign-in shim. Do not use `VITE_` prefixes, which would publish a value to the
+browser. A missing or short `SESSION_SECRET`, or an empty allowlist, fails closed.
+
+See [authentication](authentication.md) for the Google Cloud setup and the
+session model.
 
 ## Deploy
 
@@ -35,8 +42,9 @@ npm run test:vercel-gate
 
 Supply the environment variables in the Vercel dashboard, or explicitly authorize
 uploading them from the ignored `.env` with `node scripts/configure_vercel.mjs`.
-That script sends only the four settings above, by standard input, without
-printing their values. It updates Production and Preview settings.
+That script sends only the settings above, by standard input, without printing
+their values, and refuses to upload the development shim setting. It updates
+Production and Preview.
 
 Then deploy:
 
@@ -44,25 +52,31 @@ Then deploy:
 npx vercel --prod --yes
 ```
 
-`vercel.json` configures Vite output and the function. `middleware.ts` matches
-all paths, including assets and fonts, before serving content. Neither the
+`vercel.json` configures Vite output, the functions, the security headers and a
+rewrite so client-side paths such as `/terms` fall back to the shell. Neither the
 frontend nor API responses are publicly cacheable. `.vercelignore` excludes
 environment files, source documents, SQLite data, logs, and local tooling.
 
 Atlas Network Access must allow traffic from the Vercel function environment.
 If deployed API requests cannot reach Atlas, configure network access appropriate
 to your Vercel plan; do not disable TLS or expose credentials in client code.
-Prefer a read-only Atlas user scoped to `pax` for the deployed application.
+The deployed application needs read access to `questions` and read and write
+access to `users` and `sessions`, so a read-only Atlas user is no longer enough.
 
-After deployment, verify that the homepage, assets, and API return 401 without
-credentials, and the authenticated API returns the expected question count.
-Rotating the password requires updating the Vercel secret and redeploying.
+**Deploying from Git.** `main` is the production branch, so any push to it
+deploys to production. Never push an older commit to `main`: Vercel will build it
+and replace what is live.
+
+After deployment, verify that `/api/questions` returns 401 without a session,
+that the sign-in page loads, and that signing in with an allowlisted Google
+account reaches the question bank.
 
 ## Local development
 
-`npm run dev` remains a localhost-only development tool, without the password
-gate. `npm run build && npm start` provides a separate password-protected local
-production preview at http://localhost:3000 using `.env`.
+`npm run dev` is a localhost-only development tool. It serves the same auth
+routes, and with `DEV_AUTH_EMAIL` set it also exposes a sign-in shim so the app
+and the browser tests work without Google. `npm run build && npm start` runs the
+same session-protected server locally at http://localhost:3000 using `.env`.
 
 References: [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite),
 [routing middleware](https://vercel.com/docs/routing-middleware/api).

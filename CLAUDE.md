@@ -13,10 +13,10 @@ MongoDB Atlas. Every deployment path is password-gated with HTTP Basic auth.
 
 ```powershell
 npm install
-npm run dev                  # localhost-only dev server, 127.0.0.1:5173, no password gate
+npm run dev                  # localhost-only dev server, 127.0.0.1:5173, dev sign-in shim
 npm run build                # tsc -b (typecheck) + vite build -> dist/ + tsc server -> dist-server/
 npm run preview              # preview dist/ with the same /api/questions middleware
-npm start                    # password-gated production server on :3000; needs build + .env
+npm start                    # session-gated production server on :3000; needs build + .env
 ```
 
 Tests:
@@ -26,12 +26,15 @@ npx playwright install chromium
 npm run test:e2e                                        # Playwright; auto-starts npm run dev
 npx playwright test tests/app.spec.ts -g "mobile viewport"  # single browser test
 npm run build && npm run test:gate                      # auth gate for the npm start server
-npm run test:vercel-gate                                # auth gate for middleware + Vercel function
+npm run test:vercel-gate                                # auth gate for middleware + Vercel functions
+npm run build && node --test tests/auth.test.mjs        # session, token, cookie and OAuth unit tests
+node scripts/init_auth_indexes.mjs                      # once per database
 python -m unittest discover -s scripts -p test_extract_questions.py
 python -m unittest discover -s scripts -p test_extract_questions.py -k test_word_list_numbering
 ```
 
-`test:gate` reads `dist/` and `dist-server/`, so a build must run first.
+`test:gate` and `tests/auth.test.mjs` read `dist/` and `dist-server/`, so a build
+must run first.
 `test:vercel-gate` compiles to `.tools/vercel-tests/` as part of its own script.
 The extraction tests import `extract_questions` by bare name, so run them through
 `unittest discover` (or from inside `scripts/`), not by dotted module path.
@@ -55,7 +58,7 @@ scripts prepend that directory to `sys.path` themselves. There is no virtualenv.
 
 ## Architecture
 
-**One endpoint, four implementations.** `GET /api/questions` accepts `search`,
+**One data endpoint, four implementations.** `GET /api/questions` accepts `search`,
 `offset`, `limit`, `random` and returns `{ total, questions[] }`. The same
 contract is implemented separately in `vite.config.ts` (dev and preview),
 `server/production.ts` (`npm start`), `api/questions.ts` (Vercel function), and
@@ -71,14 +74,36 @@ Store failures return 503 with a generic message rather than falling back to the
 other store. Only `structural_status = 'structurally_clean'` rows are ever
 served: 5,374 of 22,947 candidates in the current extraction.
 
-**Auth fails closed everywhere.** `server/password.ts` holds the constant-time
-Basic-auth check shared by `middleware.ts` and `api/questions.ts`;
-`server/production.ts` repeats it inline because it runs before any routing.
-A missing `APP_PASSWORD`, or one under 16 characters, yields 401/503 rather than
-open access. The Vercel matcher is `/:path*` with no exclusions, so HTML, API,
-assets, and fonts are all gated, and the function re-checks independently of the
-middleware. The gate tests assert that unauthenticated requests never reach the
-store. Keep that property when touching either path.
+**Auth is Google sign-in with server-side sessions.** `server/auth/` holds it
+all: `config.ts` reads and validates settings, `google.ts` does the OAuth
+exchange and verifies Google's identity token, `tokens.ts` signs and verifies the
+session token and serialises cookies, `store.ts` keeps users and sessions in
+MongoDB, and `routes.ts` holds transport-free handlers plus the one
+`authenticate()` gate. Adapters are thin: `api/auth/[...auth].ts` for Vercel,
+`server/production.ts` for the Node server, and `vite.config.ts` for development.
+Read `docs/authentication.md` before changing any of it.
+
+**The security model, which the gate tests enforce.** The app shell and
+`/terms` and `/privacy` are public, because the sign-in page is part of the
+shell. Everything else under `/api` requires a live session. `middleware.ts` is a
+cheap perimeter that only checks the signature and expiry, with no database call;
+every function performs the authoritative check itself, including whether the
+session was revoked, so middleware is never the only gate. A missing or short
+`SESSION_SECRET`, or an empty allowlist, answers 503 rather than opening up. An
+empty allowlist is treated as misconfiguration, never as "allow anyone".
+
+**Sessions are revocable.** The token carries only a user id and a session id,
+never an email or a name, and every protected request looks the session record
+up. Signing out revokes the record, so a stolen cookie stops working immediately.
+Sessions slide forward while in use, capped by an absolute ceiling that is never
+extended. Keep both properties: do not trust the token alone, and do not put
+personal detail in it.
+
+**The development sign-in shim.** `vite.config.ts` exposes
+`POST /api/auth/dev-sign-in` when `DEV_AUTH_EMAIL` is set, which mints a real
+session without Google so the app and the browser tests work locally. It lives in
+the Vite config specifically because that file is never deployed. Never move this
+logic into `api/` or `server/`, and never set `DEV_AUTH_EMAIL` on a deployment.
 
 **Build outputs.** `tsconfig.json` is typecheck-only across `src`, `server`,
 `api`, and `middleware.ts`. `tsconfig.server.json` emits `dist-server/` for
@@ -104,8 +129,13 @@ overwriting a record that may carry manual review status.
 - `resources/`, `data/`, `.tools/`, `dist*`, and all `.env*` files are ignored by
   Git and excluded from Vercel uploads. Treat `data/extraction/` as regenerable
   staging output, not a source of truth to hand-edit.
-- `MONGODB_URI` and `APP_PASSWORD` are server-only. Never add a `VITE_` prefix to
-  a secret, and never log connection strings or raw driver errors.
+- `MONGODB_URI`, `SESSION_SECRET` and `GOOGLE_CLIENT_SECRET` are server-only.
+  Never add a `VITE_` prefix to a secret, and never log connection strings, raw
+  driver errors, or which setting is missing back to the browser.
+- Browser tests run in three Playwright projects: `setup` mints a session,
+  `anonymous` runs `*.anon.spec.ts` with no session, and `signed-in` runs the
+  rest with a shared session. A test that signs out must mint its own session
+  first, or it revokes the one every parallel spec is using.
 - Palette is exactly three colours, declared as tokens in
   `src/styles/tokens.css`: cream `#F0EBD6` ground, green `#214539` ink, white
   `#FFFFFF` surfaces. There is no accent colour, and an earlier gold accent was
@@ -189,7 +219,9 @@ auth, and extraction pipeline were untouched by the reset.
 
 ## Docs
 
-`docs/deployment.md` covers the Vercel project, required environment variables,
-and verification. `docs/mongodb.md` covers Atlas collections, import, and
+`docs/authentication.md` covers Google sign-in, sessions, the settings, and the
+Google Cloud setup. `docs/deployment.md` covers the Vercel project, required
+environment variables, and verification. `main` is Vercel's production branch, so
+pushing an older commit to it will deploy that commit over production. `docs/mongodb.md` covers Atlas collections, import, and
 switching back to SQLite. `data/extraction/report.md` records extraction results
 and known gaps once the pipeline has run.

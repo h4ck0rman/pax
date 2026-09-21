@@ -7,9 +7,9 @@ accent colour. Values are declared as tokens in `src/styles/tokens.css`.
 
 ## Web application
 
-For the minimal password-protected deployment, see [deployment setup](docs/deployment.md).
-`npm start` serves the production app and API behind a shared password;
-`npm run dev` is for local development only.
+For the deployment, see [deployment setup](docs/deployment.md) and
+[authentication](docs/authentication.md). `npm start` serves the production app
+and API with Google sign-in; `npm run dev` is for local development only.
 
 ```powershell
 npm install
@@ -50,9 +50,15 @@ needs a separate backend. See [MongoDB setup](docs/mongodb.md) for migration,
 configuration, verification, and switching back to SQLite.
 
 Averia Libre is used throughout, with bold weights for the logo and headings.
-Fonts load locally; see `public/fonts/README.md` for licensing. Access is a
-single shared password over HTTP Basic auth. Per-user accounts and persistent
-results are not implemented.
+Fonts load locally; see `public/fonts/README.md` for licensing.
+
+Access is by Google sign-in, limited to an allowlist of addresses. Pax stores no
+passwords, asks Google only for a name and an email address, and keeps the
+session in a cookie that scripts cannot read. Signing out revokes the session on
+the server. The shell and the `/terms` and `/privacy` pages are public so the
+sign-in page can load; every question request needs a live session. See
+[authentication](docs/authentication.md) for the Google Cloud setup. Test results
+are still held in memory only and are not saved per user.
 
 ```powershell
 npx playwright install chromium
@@ -66,7 +72,9 @@ and forward through a session without refetching, submitting and locking an
 answer, restarting from the nav, database failures and recovery, and the
 navigation layout holding down to a 320px viewport. The practice test suite drives
 a deterministic clock to cover setup, the command bar, pause excluding its own
-time, stop, expiry, and both export routes. Playwright
+time, stop, expiry, and both export routes. Separate projects cover the signed-out
+case: the sign-in page, the public policy pages, forged cookies, and the sign-in
+redirect. Playwright
 matches only `**/*.spec.ts`; the `*.test.mjs` auth gate suites run under
 `node --test` through `npm run test:gate` and `npm run test:vercel-gate`.
 

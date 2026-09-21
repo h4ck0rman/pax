@@ -19,3 +19,5 @@ public/fonts/Polea-ExtraBold-Demo.otf
 .env*
 
 .playwright-mcp/
+
+.auth/
