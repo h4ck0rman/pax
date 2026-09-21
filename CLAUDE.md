@@ -25,6 +25,7 @@ Tests:
 npx playwright install chromium
 npm run test:e2e                                        # Playwright; auto-starts npm run dev
 npx playwright test tests/app.spec.ts -g "mobile viewport"  # single browser test
+npx playwright test --project=anonymous                 # only the signed-out specs
 npm run build && npm run test:gate                      # auth gate for the npm start server
 npm run test:vercel-gate                                # auth gate for middleware + Vercel functions
 npm run build && node --test tests/auth.test.mjs        # session, token, cookie and OAuth unit tests
@@ -50,8 +51,27 @@ python scripts/mongo_config.py                 # connection smoke test
 python scripts/migrate_mongodb.py              # dry run
 python scripts/migrate_mongodb.py --apply      # import + verify; --verify checks only
 python scripts/verify_question_api.py          # compares a running dev server against SQLite
-node scripts/verify_deployment.mjs https://...  # live deployment auth + question count
 ```
+
+Deployment:
+
+```powershell
+node scripts/init_auth_indexes.mjs                              # once per database
+python scripts/generate_vine_art.py                             # redraw the sign-in artwork
+node scripts/configure_vercel.mjs https://pax-eosin.vercel.app  # upload settings; origin is an argument
+node scripts/verify_deployment.mjs https://pax-eosin.vercel.app # check the live posture, signing nobody in
+```
+
+`configure_vercel.mjs` takes the deployment origin as an argument and refuses
+anything that is not `https`, because `PUBLIC_ORIGIN` in `.env` is the local
+development origin and must never be uploaded. It also refuses to upload
+`DEV_AUTH_EMAIL`.
+
+`verify_deployment.mjs` checks the posture rather than signing in: the shell,
+assets and policies are public; question paths answer 401 and leak no questions
+or counts; forged and unsigned cookies are refused; the sign-in redirect carries
+PKCE, state and nonce and points at that deployment's own callback; the in-flight
+cookie is `HttpOnly`, `SameSite=Lax` and `Secure`; and the headers are present.
 
 Python dependencies are vendored per tool directory under `.tools/`, and the
 scripts prepend that directory to `sys.path` themselves. There is no virtualenv.
@@ -79,9 +99,15 @@ all: `config.ts` reads and validates settings, `google.ts` does the OAuth
 exchange and verifies Google's identity token, `tokens.ts` signs and verifies the
 session token and serialises cookies, `store.ts` keeps users and sessions in
 MongoDB, and `routes.ts` holds transport-free handlers plus the one
-`authenticate()` gate. Adapters are thin: `api/auth/[...auth].ts` for Vercel,
+`authenticate()` gate. Adapters are thin: `server/auth/vercel.ts` for Vercel,
 `server/production.ts` for the Node server, and `vite.config.ts` for development.
 Read `docs/authentication.md` before changing any of it.
+
+Each `/api/auth` route is its own file re-exporting the Vercel adapter, which
+dispatches on the request path. Do not replace them with a catch-all: on Vercel a
+catch-all only matched one path segment, so `/api/auth/me` resolved while
+`/api/auth/google/start` returned Vercel's own 404 and sign-in could not start. A
+gate test asserts all four routes resolve to the same adapter.
 
 **The security model, which the gate tests enforce.** The app shell and
 `/terms` and `/privacy` are public, because the sign-in page is part of the
@@ -91,6 +117,16 @@ every function performs the authoritative check itself, including whether the
 session was revoked, so middleware is never the only gate. A missing or short
 `SESSION_SECRET`, or an empty allowlist, answers 503 rather than opening up. An
 empty allowlist is treated as misconfiguration, never as "allow anyone".
+
+**`PUBLIC_ORIGIN` decides two security properties, and no request header may.**
+It is required whenever a Google client is configured, and startup fails without
+it. It pins the OAuth redirect URI, so no `Host` header can influence where Google
+sends an authorization code, and it decides whether cookies carry `Secure` and
+whether HSTS is sent. Never derive either from a request. `NODE_ENV` in
+particular is not a signal: nothing in this project sets it, so inferring
+transport from it silently issued cookies without `Secure`. Where a header is the
+only fallback, read the **last** `X-Forwarded-Proto` value, because proxies append
+and the first entry is whatever the client sent.
 
 **Sessions are revocable.** The token carries only a user id and a session id,
 never an email or a name, and every protected request looks the session record
@@ -130,8 +166,14 @@ overwriting a record that may carry manual review status.
   Git and excluded from Vercel uploads. Treat `data/extraction/` as regenerable
   staging output, not a source of truth to hand-edit.
 - `MONGODB_URI`, `SESSION_SECRET` and `GOOGLE_CLIENT_SECRET` are server-only.
-  Never add a `VITE_` prefix to a secret, and never log connection strings, raw
-  driver errors, or which setting is missing back to the browser.
+  Never add a `VITE_` prefix to a secret, and never tell the browser which
+  setting is missing.
+- Pass anything unexpected through `describeError` from `server/log.ts` before
+  logging it. MongoDB errors quote the connection string, credentials included,
+  so logging a raw cause puts them in the deployment's logs.
+- Two allowlists gate sign-in and you need both. Google's **test users** list
+  decides whose account may pass the consent screen; `ALLOWED_EMAILS` decides whom
+  Pax admits afterwards. An address in only one of them fails, in different ways.
 - Browser tests run in three Playwright projects: `setup` mints a session,
   `anonymous` runs `*.anon.spec.ts` with no session, and `signed-in` runs the
   rest with a shared session. A test that signs out must mint its own session
@@ -212,10 +254,30 @@ hard line wraps, up to ten per stem. `src/questions/text.ts` collapses single
 newlines so the browser controls line length, and keeps blank lines as real
 paragraph breaks. Render stems through it, never raw.
 
-The previous question bank and practice exam UI is not deleted, only retired:
+**The signed-out page is the landing page.** `src/auth/LoginPage.tsx` is a
+full-height split: a decorative panel of climbing vines beside a column holding
+the wordmark, the heading, the Google button, the policy links and three lines
+describing what Pax offers. It replaces the app shell entirely rather than
+sitting inside it, so there is no header or nav before signing in.
+
+`src/auth/VineArt.tsx` is generated by `scripts/generate_vine_art.py`. Do not edit
+the component; change the generator's density, leaf size or `SEED` and rerun it.
+The artwork is inline SVG using `currentColor`, so it stays in the palette, costs
+no request, and does not need the Content-Security-Policy to allow external or
+data-URI images. `src/auth/GoogleMark.tsx` is the one deliberate exception to the
+three-colour palette: Google's branding requires their mark unaltered and in full
+colour.
+
+**Routing is three cases, with no router.** `src/App.tsx` reads
+`window.location.pathname` for `/terms` and `/privacy`, which are public; shows
+the sign-in page when the session check says signed out; and otherwise shows the
+app. Client-side paths need a fallback to the shell, which `vercel.json` provides
+as a rewrite and `server/production.ts` as an in-memory lookup that still 404s
+anything looking like a file.
+
+The pre-rebuild question bank and practice exam UI is not deleted, only retired:
 recover it from the `pre-rebuild-baseline` tag or the `backup/pre-rebuild`
-branch, for example `git show pre-rebuild-baseline:src/App.tsx`. The server, API,
-auth, and extraction pipeline were untouched by the reset.
+branch, for example `git show pre-rebuild-baseline:src/App.tsx`.
 
 ## Docs
 

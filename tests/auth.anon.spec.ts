@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('a visitor without a session sees the sign-in page and no questions', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Welcome to Pax' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'A little space to learn.' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
 
   // None of the app is reachable.
@@ -114,4 +114,19 @@ test('the policies are readable without signing in', async ({ page }) => {
     // No question content leaks onto a public page.
     await expect(page.locator('.question-stem')).toHaveCount(0);
   }
+});
+
+test('the landing page describes what Pax offers', async ({ page }) => {
+  await page.goto('/');
+
+  const features = page.locator('.login-features li');
+  await expect(features).toHaveCount(3);
+  await expect(features.nth(0)).toContainText('Question bank');
+  await expect(features.nth(1)).toContainText('Practice tests');
+  await expect(features.nth(2)).toContainText('Export for marking');
+
+  // The artwork is decorative, inline, and hidden from assistive technology.
+  const vines = page.locator('svg.vine-art');
+  await expect(vines).toHaveAttribute('aria-hidden', 'true');
+  expect(await vines.locator('path').count()).toBeGreaterThan(50);
 });
