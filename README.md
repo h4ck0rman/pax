@@ -1,10 +1,15 @@
 # Pax
 
 A calm study companion for Basic Physician Training. The web skeleton uses
-React, TypeScript, and Vite, with deep green (`#214539`) and cream (`#F0EBD6`),
-soft corners, responsive layouts, and reduced-motion support.
+React, TypeScript, and Vite. The three-colour palette is cream (`#F0EBD6`),
+deep green (`#214539`), and a muted gold highlight (`#C5AD72`), with cream
+dominating the layout and a green panel occupying roughly 30% of the workspace.
 
 ## Web application
+
+For the minimal password-protected deployment, see [deployment setup](docs/deployment.md).
+`npm start` serves the production app and API behind a shared password;
+`npm run dev` is for local development only.
 
 ```powershell
 npm install
@@ -14,25 +19,31 @@ npm run dev
 Open http://127.0.0.1:5173. Use `npm run build` for a production build and
 `npm run preview` to preview it locally.
 
-The skeleton includes an overview, specialty search, untimed demo practice,
-configurable timed sessions, saved flashcards, and session history with average
-scores. Demo results and cards persist in this browser's local storage.
+The app opens directly onto a question. Only Question Bank and Practice Exams
+are included. Search and pagination read actual questions from the local SQLite
+database. Timed exams randomly select 5–50 questions; selections stay in memory
+for the session and can be reviewed at the end. No scoring is fabricated: the
+extracted bank does not contain verified answers.
 
-Medical question imports, authentication, server storage, custom card creation,
-and spaced-repetition scheduling are not implemented yet. Three nonmedical
-study-skills questions demonstrate the interactions. The extracted SQLite bank
-is not exposed to the browser or bundled into the application.
+The Vite server and preview server expose GET `/api/questions`. Set
+`QUESTION_STORE=mongodb` in the ignored `.env` to use Atlas, or `sqlite` to
+read `data/extraction/questions.sqlite` with Python. Only `structurally_clean`
+candidates are served (5,374 in the current extraction); these are still
+medically unreviewed. Credentials stay on the server. A static-only deployment
+needs a separate backend. See [MongoDB setup](docs/mongodb.md) for migration,
+configuration, verification, and switching back to SQLite.
 
-The UI uses Google Fonts with local system fallbacks, Lucide icons, and a local
-SVG botanical illustration. No image-generation or external image assets are required.
+Averia Libre is used throughout, with bold weights for the logo and headings.
+Fonts load locally; see `public/fonts/README.md` for licensing.
+Authentication and persistent user results are not implemented.
 
 ```powershell
 npx playwright install chromium
 npm run test:e2e
 ```
 
-Browser tests cover a complete practice session, saved flashcards, persistence,
-timer expiry, mobile navigation, and specialty search.
+Browser tests cover actual database questions, search, selections, timed exams,
+timer expiry, mobile layout, fonts, and database failure handling.
 
 ## Question extraction
 

@@ -5,8 +5,17 @@ __pycache__/
 *.log
 node_modules/
 dist/
+dist-server/
+.vercel/
 playwright-report/
 test-results/
 .env
 .env.*
+!.env.example
 *.tsbuildinfo
+public/fonts/Polea-ExtraBold-Demo.otf
+
+.vercel
+.env*
+
+.playwright-mcp/

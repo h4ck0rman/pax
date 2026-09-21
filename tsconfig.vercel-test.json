@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
+    "outDir": ".tools/vercel-tests", "rootDir": ".", "strict": true,
+    "skipLibCheck": true, "types": ["node"]
+  },
+  "include": ["middleware.ts", "api/**/*.ts", "server/password.ts", "server/question-store.ts"]
+}
