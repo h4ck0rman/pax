@@ -34,8 +34,8 @@ check('the built assets are public and load', async () => {
   assert.equal((await get(style)).status, 200);
 });
 
-check('the policies are readable without signing in', async () => {
-  for (const path of ['/terms', '/privacy']) {
+check('the public pages are readable without signing in', async () => {
+  for (const path of ['/login', '/terms', '/privacy']) {
     const response = await get(path);
     assert.equal(response.status, 200, path);
     assert.match(await response.text(), /<div id="root">/);
@@ -81,7 +81,7 @@ check('sign-in redirects to Google with PKCE and a state cookie', async () => {
   assert.equal(response.status, 302);
 
   const location = response.headers.get('location') ?? '';
-  if (location === '/?error=config') {
+  if (location === '/login?error=config') {
     throw new Error('Google sign-in is not configured on this deployment');
   }
 
@@ -105,7 +105,8 @@ check('sign-in redirects to Google with PKCE and a state cookie', async () => {
 check('the callback refuses a mismatched state', async () => {
   const response = await get('/api/auth/google/callback?code=fake&state=wrong');
   assert.equal(response.status, 302);
-  assert.match(response.headers.get('location') ?? '', /^\/\?error=/);
+  // A failed sign-in goes back to the page that holds the button.
+  assert.match(response.headers.get('location') ?? '', /^\/login\?error=/);
   assert.equal((response.headers.get('set-cookie') ?? '').includes('pax_session=ey'), false);
 });
 
