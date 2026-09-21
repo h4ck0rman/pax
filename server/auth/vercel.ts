@@ -1,12 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleAuthRequest, resolveAuthDeps, type AuthRequest } from '../../server/auth/routes.js';
-import {
-  AuthConfigError,
-  isLoopbackHost,
-  secureCookiesFor,
-  type AuthConfig,
-} from '../../server/auth/config.js';
-import { describeError } from '../../server/log.js';
+import { AuthConfigError, isLoopbackHost, secureCookiesFor, type AuthConfig } from './config.js';
+import { handleAuthRequest, resolveAuthDeps, type AuthRequest } from './routes.js';
+import { describeError } from '../log.js';
 
 /** Builds the transport-free request the auth routes work with.
  *
@@ -40,13 +35,15 @@ export function toAuthRequest(req: VercelRequest, config?: AuthConfig): AuthRequ
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+/** The one adapter every /api/auth route file delegates to. Each route is its
+ *  own file because a catch-all did not reliably match nested paths. */
+export default async function handleAuthOnVercel(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Vary', 'Cookie');
 
   const deps = resolveAuthDeps();
   if (deps instanceof AuthConfigError) {
-    // Fail closed, and never echo which setting is missing to the browser.
+    // Fail closed, and never tell the browser which setting is missing.
     console.error('Auth is not configured:', deps.message);
     res.status(503).json({ error: 'Sign-in is not configured.' });
     return;

@@ -7,7 +7,7 @@
     "api/questions.ts": {
       "maxDuration": 30
     },
-    "api/auth/[...auth].ts": {
+    "api/auth/**/*.ts": {
       "maxDuration": 15
     }
   },

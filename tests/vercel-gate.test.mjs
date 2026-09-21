@@ -142,7 +142,7 @@ test('the auth function refuses to run when it is not configured', async () => {
   delete process.env.ALLOWED_EMAILS;
   delete process.env.ALLOWED_DOMAIN;
 
-  const { default: handler } = await import('../.tools/vercel-tests/api/auth/[...auth].js');
+  const { default: handler } = await import('../.tools/vercel-tests/api/auth/me.js');
 
   let status;
   let body;
@@ -167,7 +167,7 @@ test('the auth function refuses to run when it is not configured', async () => {
 });
 
 test('the auth function does not let a request header downgrade a cookie', async () => {
-  const { toAuthRequest } = await import('../.tools/vercel-tests/api/auth/[...auth].js');
+  const { toAuthRequest } = await import('../.tools/vercel-tests/server/auth/vercel.js');
   const { readAuthConfig } = await import('../.tools/vercel-tests/server/auth/config.js');
 
   const httpsConfig = readAuthConfig({
@@ -199,4 +199,12 @@ test('the auth function does not let a request header downgrade a cookie', async
   assert.equal(toAuthRequest({ headers: { host: 'localhost:3000' }, method: 'GET', url: '/' }, unpinned).secure, false);
   assert.equal(toAuthRequest({ headers: { host: '127.0.0.1:5173' }, method: 'GET', url: '/' }, unpinned).secure, false);
   assert.equal(toAuthRequest({ headers: { host: 'pax.test' }, method: 'GET', url: '/' }, unpinned).secure, true);
+});
+
+test('every auth route file resolves to the shared adapter', async () => {
+  const shared = (await import('../.tools/vercel-tests/server/auth/vercel.js')).default;
+  for (const route of ['auth/me', 'auth/logout', 'auth/google/start', 'auth/google/callback']) {
+    const { default: handler } = await import(`../.tools/vercel-tests/api/${route}.js`);
+    assert.equal(handler, shared, route);
+  }
 });
