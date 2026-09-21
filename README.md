@@ -1,9 +1,9 @@
 # Pax
 
 A calm study companion for Basic Physician Training. The web skeleton uses
-React, TypeScript, and Vite. The three-colour palette is cream (`#F0EBD6`),
-deep green (`#214539`), and a muted gold highlight (`#C5AD72`), with cream
-dominating the layout and a green panel occupying roughly 30% of the workspace.
+React, TypeScript, and Vite. The three-colour palette is a cream ground
+(`#F0EBD6`), deep green ink (`#214539`), and white surfaces (`#FFFFFF`), with no
+accent colour. Values are declared as tokens in `src/styles/tokens.css`.
 
 ## Web application
 
@@ -19,11 +19,27 @@ npm run dev
 Open http://127.0.0.1:5173. Use `npm run build` for a production build and
 `npm run preview` to preview it locally.
 
-The app opens directly onto a question. Only Question Bank and Practice Exams
-are included. Search and pagination read actual questions from the local SQLite
-database. Timed exams randomly select 5–50 questions; selections stay in memory
-for the session and can be reviewed at the end. No scoring is fabricated: the
-extracted bank does not contain verified answers.
+The frontend is being rebuilt feature by feature from an empty shell. Question
+Bank is in: it opens on the first question in the bank and draws a random one
+each time you choose Next. Back walks back through the questions already
+drawn, keeping each one's selection. Submit commits an answer and locks that
+question's options.
+
+Practice Test is in too. Choose a question count and a time limit, then sit the
+paper against a countdown. A command bar above the question shows the time left,
+how far through you are and how many you have answered, and lets you pause, which
+stops the clock and hides the question, or stop, which ends the sitting. Running
+out of time ends it automatically. At the end, Copy for LLM puts the whole paper
+on the clipboard and Export test downloads it as Markdown, each containing every
+question, its options, your answer and instructions for a language model to grade
+it.
+
+Nothing is marked correct and nothing is scored anywhere in Pax, because the
+bank has no verified answer keys. A session is held in memory only. Design
+tokens, element defaults, shell layout, and feature styles live in separate files
+under `src/styles/`. The earlier question bank and practice exam interface is
+retired rather than deleted, and is recoverable from the `pre-rebuild-baseline`
+tag.
 
 The Vite server and preview server expose GET `/api/questions`. Set
 `QUESTION_STORE=mongodb` in the ignored `.env` to use Atlas, or `sqlite` to
@@ -34,16 +50,25 @@ needs a separate backend. See [MongoDB setup](docs/mongodb.md) for migration,
 configuration, verification, and switching back to SQLite.
 
 Averia Libre is used throughout, with bold weights for the logo and headings.
-Fonts load locally; see `public/fonts/README.md` for licensing.
-Authentication and persistent user results are not implemented.
+Fonts load locally; see `public/fonts/README.md` for licensing. Access is a
+single shared password over HTTP Basic auth. Per-user accounts and persistent
+results are not implemented.
 
 ```powershell
 npx playwright install chromium
 npm run test:e2e
 ```
 
-Browser tests cover actual database questions, search, selections, timed exams,
-timer expiry, mobile layout, fonts, and database failure handling.
+Browser tests cover the shell, the question box, and the bank: real database
+questions, the palette and locally loaded fonts, line-wrap collapsing, single
+selection, opening on question 1 and drawing randomly after that, walking back
+and forward through a session without refetching, submitting and locking an
+answer, restarting from the nav, database failures and recovery, and the
+navigation layout holding down to a 320px viewport. The practice test suite drives
+a deterministic clock to cover setup, the command bar, pause excluding its own
+time, stop, expiry, and both export routes. Playwright
+matches only `**/*.spec.ts`; the `*.test.mjs` auth gate suites run under
+`node --test` through `npm run test:gate` and `npm run test:vercel-gate`.
 
 ## Question extraction
 

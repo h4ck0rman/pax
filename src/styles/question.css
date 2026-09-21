@@ -1,0 +1,283 @@
+/* The question box: a white card on the cream ground, holding one question. */
+.question-box {
+  width: 100%;
+  max-width: calc(var(--measure) + var(--space-7) * 2);
+  margin-inline: auto;
+  padding: var(--space-7);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.question-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.question-count {
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.question-stem {
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  margin-bottom: var(--space-6);
+}
+
+/* One block per authored paragraph. Wrapped lines from the source PDF are
+   collapsed before rendering, so the browser controls the line length. */
+.question-stem-block {
+  display: block;
+}
+
+.question-stem-block + .question-stem-block {
+  margin-top: var(--space-4);
+}
+
+.question-options {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-4);
+  text-align: left;
+  font-size: var(--text-md);
+  line-height: 1.55;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  transition:
+    background var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.option:hover {
+  background: var(--wash);
+  border-color: var(--line-strong);
+}
+
+.option[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.option-letter {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--wash);
+  font-size: var(--text-xs);
+  font-weight: 800;
+}
+
+.option[aria-pressed='true'] .option-letter {
+  background: var(--on-ink);
+  color: var(--ink);
+}
+
+.option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.option-mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+}
+
+.option[aria-pressed='true'] .option-mark {
+  background: var(--on-ink);
+  border-color: var(--on-ink);
+  color: var(--ink);
+}
+
+/* Navigation under the options, stacked: the one real action across the top,
+   then the two steps as links beneath it. Back and Next always share their
+   line, so nothing in that pair may wrap. */
+.question-nav {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.nav-commit {
+  width: 100%;
+  justify-content: center;
+}
+
+.nav-steps {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.question-nav .button,
+.question-nav .link {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.question-submitted {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+  padding-block: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+/* Messages sit above the row rather than in it. */
+.question-message {
+  margin-top: var(--space-5);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.question-source {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.question-source-line {
+  color: var(--ink-faint);
+}
+
+/* Loading, error and empty states share the card. */
+.question-state {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+  min-height: 12rem;
+  align-content: center;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.question-state-title {
+  font-size: var(--text-lg);
+  color: var(--ink);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--ink);
+  color: var(--on-ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  transition:
+    background var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.button:disabled {
+  opacity: 0.4;
+}
+
+/* A link is an action with no chrome, for steps that are not the main one. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 4px;
+  transition:
+    text-decoration-color var(--duration) var(--ease),
+    opacity var(--duration) var(--ease);
+}
+
+.link:hover:not(:disabled) {
+  text-decoration-color: currentColor;
+}
+
+.link:disabled {
+  opacity: 0.35;
+  text-decoration-color: transparent;
+}
+
+/* Locked options stay focusable for review, so they are dimmed rather than
+   disabled, and they no longer respond to the pointer. */
+.option[aria-disabled='true'] {
+  cursor: default;
+}
+
+.option[aria-disabled='true']:not([aria-pressed='true']) {
+  opacity: 0.6;
+}
+
+.option[aria-disabled='true']:hover:not([aria-pressed='true']) {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+
+.question-box[aria-busy='true'] .question-stem,
+.question-box[aria-busy='true'] .question-options {
+  opacity: 0.55;
+  transition: opacity var(--duration) var(--ease);
+}
+
+@media (max-width: 750px) {
+  .question-box {
+    padding: var(--space-5);
+    border-radius: var(--radius-md);
+  }
+
+  .option {
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .question-nav {
+    gap: var(--space-3);
+  }
+}

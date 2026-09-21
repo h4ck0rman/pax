@@ -1,0 +1,117 @@
+/* The application shell: header, content region, footer. Features add their
+   own stylesheet rather than extending these rules. */
+.app {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  padding-inline: var(--shell-gutter);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  min-height: 104px;
+}
+
+.logo {
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.logo span {
+  margin-left: 0.06em;
+}
+
+.app-nav {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--wash);
+  border-radius: var(--radius-pill);
+}
+
+.nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  transition:
+    background var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.nav-item:hover {
+  background: var(--wash);
+}
+
+.nav-item[aria-current='page'] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-block: var(--space-4) var(--space-9);
+  min-width: 0;
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-block: var(--space-6);
+}
+
+.wordmark {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 750px) {
+  .app-header {
+    min-height: 84px;
+  }
+
+  .logo {
+    font-size: 38px;
+  }
+}
+
+/* Below this the logo and both sections stop fitting side by side, so the nav
+   drops to its own full-width row and the items share it. */
+@media (max-width: 480px) {
+  .app-header {
+    flex-wrap: wrap;
+    row-gap: var(--space-3);
+    padding-block: var(--space-4);
+    min-height: 0;
+  }
+
+  .app-nav {
+    width: 100%;
+  }
+
+  .nav-item {
+    flex: 1;
+    justify-content: center;
+    padding-inline: var(--space-3);
+    font-size: var(--text-xs);
+  }
+}
