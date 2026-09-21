@@ -1,20 +1,29 @@
-import { useCallback, useRef, useState } from 'react';
-import { Check, ClipboardCopy, Download, RotateCcw } from 'lucide-react';
-import { toSingleLine } from '../questions/text';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { Check, ClipboardCopy, Download } from 'lucide-react';
+import { toParagraphs, toSingleLine } from '../questions/text';
 import { buildFileName, buildGradingDocument, formatDuration } from './export';
 import type { CompletedTest } from './types';
 
-type Props = { test: CompletedTest; onRestart: () => void };
+type Props = {
+  test: CompletedTest;
+  /** Heading for the card. The sitting says what just happened; history says when. */
+  title: string;
+  meta?: ReactNode;
+  lead?: ReactNode;
+  /** An extra control beside the export buttons. */
+  trailing?: ReactNode;
+};
 
 type CopyState = 'idle' | 'copied' | 'manual';
 
-/** What happened, and how to get the paper out for grading elsewhere. */
-export default function TestReview({ test, onRestart }: Props) {
+/** A finished paper: every question with all of its options, the chosen one
+ *  marked, and the two ways to take it away for marking. Nothing is scored,
+ *  because the bank has no verified answer keys. */
+export default function TestReview({ test, title, meta, lead, trailing }: Props) {
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const manualRef = useRef<HTMLTextAreaElement>(null);
 
   const answered = test.answers.filter(answer => answer.selected).length;
-  const used = test.usedSeconds;
   const document_ = buildGradingDocument(test);
 
   const copyForLlm = useCallback(async () => {
@@ -47,17 +56,23 @@ export default function TestReview({ test, onRestart }: Props) {
       <header className="question-meta">
         <span className="eyebrow">Practice test</span>
         <span className="question-count">
-          {test.expired ? 'Time ran out' : 'Finished'} · {formatDuration(used)}
+          {meta ?? (
+            <>
+              {test.expired ? 'Time ran out' : 'Finished'} · {formatDuration(test.usedSeconds)}
+            </>
+          )}
         </span>
       </header>
 
-      <h2 className="setup-title">
-        {test.expired ? 'Time is up.' : 'Test complete.'}
-      </h2>
+      <h2 className="setup-title">{title}</h2>
       <p className="setup-lead">
-        You answered {answered} of {test.answers.length} questions in {formatDuration(used)}, against
-        a {test.config.minutes} minute limit. Pax does not mark the paper, because the bank has no
-        verified answer keys.
+        {lead ?? (
+          <>
+            You answered {answered} of {test.answers.length} questions in{' '}
+            {formatDuration(test.usedSeconds)}, against a {test.config.minutes} minute limit. Pax
+            does not mark the paper, because the bank has no verified answer keys.
+          </>
+        )}
       </p>
 
       <div className="review-actions">
@@ -77,9 +92,7 @@ export default function TestReview({ test, onRestart }: Props) {
           <Download size={16} aria-hidden="true" /> Export test
         </button>
 
-        <button type="button" className="link" onClick={onRestart}>
-          <RotateCcw size={15} aria-hidden="true" /> New test
-        </button>
+        {trailing}
       </div>
 
       <p className="review-hint" role="status">
@@ -102,20 +115,44 @@ export default function TestReview({ test, onRestart }: Props) {
       )}
 
       <ol className="review-list">
-        {test.answers.map((answer, position) => {
-          const chosen = answer.question.options.find(option => option.label === answer.selected);
-          return (
-            <li key={answer.question.id} className="review-item">
-              <p className="review-stem">
-                <span className="review-number">{position + 1}</span>
-                {toSingleLine(answer.question.stem)}
-              </p>
-              <p className={answer.selected ? 'review-answer' : 'review-answer is-blank'}>
-                {chosen ? `${chosen.label}. ${toSingleLine(chosen.text)}` : 'Not answered'}
-              </p>
-            </li>
-          );
-        })}
+        {test.answers.map((answer, position) => (
+          <li key={`${answer.question.id}-${position}`} className="review-item">
+            <p className="review-stem">
+              <span className="review-number">{position + 1}</span>
+              <span>
+                {toParagraphs(answer.question.stem).map((paragraph, block) => (
+                  <span className="review-stem-block" key={block}>
+                    {paragraph}{' '}
+                  </span>
+                ))}
+              </span>
+            </p>
+
+            {/* Every option, with the chosen one marked. Nothing here says which
+                option is correct, because that is not known. */}
+            <ul className="review-options">
+              {answer.question.options.map(option => {
+                const chosen = option.label === answer.selected;
+                return (
+                  <li
+                    key={option.label}
+                    className={chosen ? 'review-option is-chosen' : 'review-option'}
+                  >
+                    <span className="review-option-letter">{option.label}</span>
+                    <span className="review-option-text">{toSingleLine(option.text)}</span>
+                    {chosen && (
+                      <span className="review-option-mark">
+                        <Check size={14} aria-hidden="true" /> Your answer
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {!answer.selected && <p className="review-blank">Not answered</p>}
+          </li>
+        ))}
       </ol>
 
       <footer className="question-source">

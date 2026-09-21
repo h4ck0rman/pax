@@ -5,6 +5,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { QuestionQuery } from './question-store.js';
 import { authenticate, handleAuthRequest, type AuthDeps, type AuthRequest } from './auth/routes.js';
 import { secureCookiesFor } from './auth/config.js';
+import { handleHistoryRequest } from './history/routes.js';
+import type { HistoryStore } from './history/store.js';
 
 type Store = { query: (params: QuestionQuery) => Promise<unknown> };
 
@@ -37,6 +39,26 @@ function collectAssets(directory: string, prefix = '', into = new Map<string, st
   return into;
 }
 
+/** Reads a JSON body, capped so a huge upload cannot be buffered. */
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  if (req.method !== 'POST' && req.method !== 'PUT') return undefined;
+
+  const limit = 2 * 1024 * 1024;
+  let size = 0;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new Error('Body too large');
+    chunks.push(chunk as Buffer);
+  }
+  if (!size) return undefined;
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
 function toAuthRequest(req: IncomingMessage, secure: boolean): AuthRequest {
   const host = req.headers.host ?? 'localhost';
   const url = new URL(req.url ?? '/', `${secure ? 'https' : 'http'}://${host}`);
@@ -56,6 +78,7 @@ function toAuthRequest(req: IncomingMessage, secure: boolean): AuthRequest {
 export function createProductionServer(config: {
   dist: string;
   store: Store;
+  history: HistoryStore;
   auth: AuthDeps;
   /** Overrides the transport decision. Only tests should need this. */
   secure?: boolean;
@@ -123,6 +146,24 @@ export function createProductionServer(config: {
         }
         const data = await config.store.query(params);
         res.end(request.method === 'HEAD' ? undefined : JSON.stringify(data));
+        return;
+      }
+
+      if (request.path === '/api/tests') {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        const signedIn = await authenticate(config.auth, request);
+        if (!signedIn) {
+          res.statusCode = 401;
+          res.end(JSON.stringify({ error: 'Sign in to see your past tests.' }));
+          return;
+        }
+        const result = await handleHistoryRequest(config.history, signedIn.user._id, {
+          method: request.method,
+          query: request.query,
+          body: await readJsonBody(req),
+        });
+        res.statusCode = result.status;
+        res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
         return;
       }
 

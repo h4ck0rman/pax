@@ -19,7 +19,10 @@ try {
     { expireAfterSeconds: 0, name: 'absoluteExpiresAt_ttl' },
   );
 
-  for (const name of ['users', 'sessions']) {
+  // Past tests: every query is "this person's sittings, newest first".
+  await db.collection('tests').createIndex({ userId: 1, finishedAt: -1 }, { name: 'userId_finishedAt' });
+
+  for (const name of ['users', 'sessions', 'tests']) {
     const indexes = await db.collection(name).indexes();
     console.log(`${name}: ${indexes.map(index => index.name).join(', ')}`);
   }

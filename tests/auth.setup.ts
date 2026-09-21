@@ -16,7 +16,7 @@ setup('mint a session', async ({ page }) => {
   expect(body.user.email).toBeTruthy();
 
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.locator('.account-bubble')).toBeVisible();
 
   await page.context().storageState({ path: SESSION_STATE });
 });

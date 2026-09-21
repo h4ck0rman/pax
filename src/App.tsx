@@ -1,18 +1,21 @@
 import { useState } from 'react';
-import { BookOpen, Clock3, LogOut } from 'lucide-react';
+import { BookOpen, Clock3 } from 'lucide-react';
 import QuestionBank from './questions/QuestionBank';
 import PracticeTest from './practice/PracticeTest';
 import LandingPage from './landing/LandingPage';
 import LoginPage from './auth/LoginPage';
 import LegalPage, { type LegalDocument } from './legal/LegalPage';
+import AppNav, { type SectionOption } from './shell/AppNav';
+import AccountMenu from './shell/AccountMenu';
 import { useAuth } from './auth/AuthProvider';
 
 type Section = 'bank' | 'test';
 
-const TITLES: Record<Section, string> = {
-  bank: 'Question bank',
-  test: 'Practice test',
-};
+/** The one list to extend when a section is added. */
+const SECTIONS: readonly SectionOption<Section>[] = [
+  { id: 'bank', label: 'Question bank', icon: BookOpen },
+  { id: 'test', label: 'Practice test', icon: Clock3 },
+];
 
 /** The paths the app serves besides the root, all public. The policies must be
  *  readable before signing in, and reachable by Google's reviewers. */
@@ -53,6 +56,7 @@ export default function App() {
   }
 
   const signedIn = auth.status === 'signed-in';
+  const title = SECTIONS.find(entry => entry.id === section)?.label ?? 'Pax';
 
   return (
     <div className="app">
@@ -62,38 +66,20 @@ export default function App() {
         </a>
 
         {signedIn && (
-          <nav className="app-nav" aria-label="Sections">
-            <button
-              type="button"
-              className="nav-item"
-              aria-current={section === 'bank' ? 'page' : undefined}
-              onClick={() => choose('bank')}
-            >
-              <BookOpen size={16} aria-hidden="true" /> Question bank
-            </button>
-            <button
-              type="button"
-              className="nav-item"
-              aria-current={section === 'test' ? 'page' : undefined}
-              onClick={() => choose('test')}
-            >
-              <Clock3 size={16} aria-hidden="true" /> Practice test
-            </button>
-          </nav>
-        )}
+          <>
+            <AppNav sections={SECTIONS} current={section} onChoose={choose} />
 
-        {signedIn && (
-          <div className="app-account">
-            <span className="app-account-email">{auth.user.email}</span>
-            <button type="button" className="link" onClick={() => void auth.signOut()}>
-              <LogOut size={15} aria-hidden="true" /> Sign out
-            </button>
-          </div>
+            <AccountMenu
+              name={auth.user.name}
+              email={auth.user.email}
+              onSignOut={() => void auth.signOut()}
+            />
+          </>
         )}
       </header>
 
       <main className="app-main">
-        <h1 className="sr-only">{signedIn ? TITLES[section] : 'Pax'}</h1>
+        <h1 className="sr-only">{signedIn ? title : 'Pax'}</h1>
 
         {auth.status === 'checking' ? (
           <section className="question-box">

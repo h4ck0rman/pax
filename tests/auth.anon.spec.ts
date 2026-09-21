@@ -10,7 +10,7 @@ test('a visitor without a session sees the sign-in page and no questions', async
   await expect(page.locator('.question-stem')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Question bank' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Practice test' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  await expect(page.locator('.account-bubble')).toHaveCount(0);
 });
 
 test('the question bank refuses an unauthenticated request', async ({ request }) => {

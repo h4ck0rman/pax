@@ -34,8 +34,12 @@ on the clipboard and Export test downloads it as Markdown, each containing every
 question, its options, your answer and instructions for a language model to grade
 it.
 
+Finished tests are kept against your account. The Practice Test screen lists the
+ten most recent under the start control, and opening one shows every question with
+all of its options and the one you chose, with the same copy and export controls.
+
 Nothing is marked correct and nothing is scored anywhere in Pax, because the
-bank has no verified answer keys. A session is held in memory only. Design
+bank has no verified answer keys. Design
 tokens, element defaults, shell layout, and feature styles live in separate files
 under `src/styles/`. The earlier question bank and practice exam interface is
 retired rather than deleted, and is recoverable from the `pre-rebuild-baseline`

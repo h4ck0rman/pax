@@ -193,18 +193,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.review-answer {
-  margin-top: var(--space-2);
-  margin-left: calc(var(--space-3) + 1.2em);
-  font-size: var(--text-sm);
-  font-weight: 700;
-}
-
-.review-answer.is-blank {
-  font-weight: 400;
-  color: var(--ink-faint);
-}
-
 @media (max-width: 750px) {
   .test-bar {
     flex-wrap: wrap;
@@ -222,7 +210,4 @@
     margin-left: auto;
   }
 
-  .review-answer {
-    margin-left: 0;
-  }
 }

@@ -58,8 +58,26 @@ function store({ revoked = false } = {}) {
   };
 }
 
+/** In-memory stand-in for the past tests collection. */
+function historyStore() {
+  const saved = [];
+  return {
+    saved,
+    async save(record) {
+      saved.push(record);
+    },
+    async list() {
+      return { total: saved.length, tests: [] };
+    },
+    async detail() {
+      return null;
+    },
+  };
+}
+
 async function start({ revoked = false } = {}) {
   let queries = 0;
+  const history = historyStore();
   const server = createProductionServer({
     dist: resolve('dist'),
     store: {
@@ -68,6 +86,7 @@ async function start({ revoked = false } = {}) {
         return { total: 1, questions: [] };
       },
     },
+    history,
     auth: { config, store: store({ revoked }) },
     secure: false,
   });
@@ -75,6 +94,7 @@ async function start({ revoked = false } = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   return {
     base,
+    history,
     get queries() {
       return queries;
     },
@@ -187,12 +207,81 @@ test('nothing outside the build is reachable', async () => {
   }
 });
 
+test('past tests need a live session, and never accept junk', async () => {
+  const app = await start();
+  const headers = { cookie: await cookie() };
+  try {
+    // Closed to a stranger, and the store is never touched.
+    for (const init of [{}, { method: 'POST', body: '{}' }]) {
+      const response = await fetch(app.base + '/api/tests', init);
+      assert.equal(response.status, 401, JSON.stringify(init));
+    }
+    assert.equal(app.history.saved.length, 0);
+
+    assert.equal((await fetch(app.base + '/api/tests', { headers })).status, 200);
+
+    // A signed-in reader still has their upload checked.
+    const bad = [
+      {},
+      { id: 'x', minutes: 15, usedSeconds: 1, answers: [] },
+      { id: 'x', minutes: 0, usedSeconds: 1, answers: [{ questionId: 'q', stem: 's', options: [{ label: 'A', text: 'x' }] }] },
+      {
+        id: 'x',
+        minutes: 15,
+        usedSeconds: 1,
+        answers: [{ questionId: 'q', stem: 's', options: [{ label: 'A', text: 'x' }], selected: 'Z' }],
+      },
+    ];
+    for (const body of bad) {
+      const response = await fetch(app.base + '/api/tests', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 400, JSON.stringify(body).slice(0, 40));
+    }
+    assert.equal(app.history.saved.length, 0);
+
+    // A well-formed sitting is kept, and stamped with the server's own clock.
+    const good = {
+      id: 'sitting-1',
+      minutes: 15,
+      usedSeconds: 42,
+      expired: false,
+      answers: [
+        {
+          questionId: 'q1',
+          stem: 'A stem',
+          options: [{ label: 'A', text: 'One' }, { label: 'B', text: 'Two' }],
+          selected: 'B',
+        },
+      ],
+    };
+    const created = await fetch(app.base + '/api/tests', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(good),
+    });
+    assert.equal(created.status, 201);
+    assert.equal(app.history.saved.length, 1);
+
+    const [record] = app.history.saved;
+    assert.equal(record.userId, user._id, 'the sitting is filed against the signed-in reader');
+    assert.equal(record.answeredCount, 1);
+    assert.equal(record.questionCount, 1);
+    assert.ok(record.finishedAt instanceof Date);
+  } finally {
+    await app.stop();
+  }
+});
+
 test('the server refuses to start without a build', () => {
   assert.throws(
     () =>
       createProductionServer({
         dist: resolve('scripts'),
         store: { async query() {} },
+        history: historyStore(),
         auth: { config, store: store() },
       }),
     /Build the frontend/,

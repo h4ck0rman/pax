@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Flag, Play } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag, Play, RotateCcw } from 'lucide-react';
 import QuestionBox from '../questions/QuestionBox';
+import { saveTest } from '../history/api';
+import PastTestView from '../history/PastTestView';
 import { fetchQuestions } from '../questions/api';
 import TestBar from './TestBar';
 import TestReview from './TestReview';
 import TestSetup from './TestSetup';
 import type { CompletedTest, TestAnswer, TestConfig } from './types';
 
-type Phase = 'setup' | 'sitting' | 'review';
+type Phase = 'setup' | 'sitting' | 'review' | 'past';
 
 /** The countdown. `runningSince` is null while paused, so paused time never
  *  counts against the candidate. */
@@ -28,24 +30,47 @@ export default function PracticeTest() {
   const [completed, setCompleted] = useState<CompletedTest | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState('');
+  /** Null until a sitting has been kept, so a failure can be retried. */
+  const [saveFailed, setSaveFailed] = useState(false);
+  /** The past sitting being reviewed, if any. */
+  const [pastId, setPastId] = useState<string | null>(null);
 
   // Read in the countdown effect, which must not restart on every answer.
   const latest = useRef({ answers, config, clock });
   latest.current = { answers, config, clock };
+
+  /** Stable for one sitting, so saving is idempotent. */
+  const sittingId = useRef<string | null>(null);
+
+  /** Writes the sitting to the reader's history. The id is generated here, so a
+   *  retry replaces the same record rather than adding a second row. */
+  const keep = useCallback(async (record: CompletedTest) => {
+    const id = sittingId.current ?? crypto.randomUUID();
+    sittingId.current = id;
+    try {
+      await saveTest(record, id);
+      setSaveFailed(false);
+    } catch {
+      setSaveFailed(true);
+    }
+  }, []);
 
   const finish = useCallback((expired: boolean) => {
     const { answers: sat, config: sitting, clock: at } = latest.current;
     if (!sitting) return;
     const left = expired ? 0 : remainingMsOf(at, Date.now());
     setClock({ remainingMs: left, runningSince: null });
-    setCompleted({
+    const record: CompletedTest = {
       config: sitting,
       answers: sat,
       finishedAt: Date.now(),
       usedSeconds: Math.round((sitting.minutes * 60 * 1000 - left) / 1000),
       expired,
-    });
+    };
+    setCompleted(record);
     setPhase('review');
+    // Keeping the sitting must never block the review screen.
+    void keep(record);
   }, []);
 
   useEffect(() => {
@@ -74,6 +99,8 @@ export default function PracticeTest() {
       setClock({ remainingMs: chosen.minutes * 60 * 1000, runningSince: Date.now() });
       setRemainingSeconds(chosen.minutes * 60);
       setCompleted(null);
+      sittingId.current = null;
+      setSaveFailed(false);
       setPhase('sitting');
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Could not start the test.');
@@ -114,12 +141,51 @@ export default function PracticeTest() {
     setError('');
   }, []);
 
+  if (phase === 'past' && pastId) {
+    return (
+      <PastTestView
+        id={pastId}
+        onBack={() => {
+          setPastId(null);
+          setPhase('setup');
+        }}
+      />
+    );
+  }
+
   if (phase === 'setup') {
-    return <TestSetup busy={drawing} error={error} onStart={start} />;
+    return (
+      <TestSetup
+        busy={drawing}
+        error={error}
+        onStart={start}
+        onOpenPast={id => {
+          setPastId(id);
+          setPhase('past');
+        }}
+      />
+    );
   }
 
   if (phase === 'review' && completed) {
-    return <TestReview test={completed} onRestart={restart} />;
+    return (
+      <TestReview
+        test={completed}
+        title={completed.expired ? 'Time is up.' : 'Test complete.'}
+        trailing={
+          <>
+            <button type="button" className="link" onClick={restart}>
+              <RotateCcw size={15} aria-hidden="true" /> New test
+            </button>
+            {saveFailed && (
+              <button type="button" className="link" onClick={() => void keep(completed)}>
+                <RotateCcw size={15} aria-hidden="true" /> Retry saving
+              </button>
+            )}
+          </>
+        }
+      />
+    );
   }
 
   const current = answers[index];

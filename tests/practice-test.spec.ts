@@ -161,7 +161,7 @@ test('stop ends the sitting and keeps the answers given so far', async ({ page }
   await expect(page.getByRole('heading', { name: 'Test complete.' })).toBeVisible();
   await expect(page.locator('.setup-lead')).toContainText('You answered 1 of 5 questions');
   await expect(page.locator('.review-item')).toHaveCount(5);
-  await expect(page.locator('.review-answer.is-blank')).toHaveCount(4);
+  await expect(page.locator('.review-blank')).toHaveCount(4);
 });
 
 test('running out of time ends the sitting automatically', async ({ page }) => {
@@ -262,7 +262,7 @@ test('the sitting never claims an answer is correct or gives a score', async ({ 
   );
   // No question carries a correctness marker of any kind.
   await expect(page.locator('[class*="correct"], [data-correct], [aria-invalid]')).toHaveCount(0);
-  await expect(page.locator('.review-answer')).toHaveCount(5);
+  await expect(page.locator('.review-item')).toHaveCount(5);
 });
 
 test('the command bar holds together on a narrow viewport', async ({ page }) => {

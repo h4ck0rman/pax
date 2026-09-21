@@ -56,7 +56,7 @@ python scripts/verify_question_api.py          # compares a running dev server a
 Deployment:
 
 ```powershell
-node scripts/init_auth_indexes.mjs                              # once per database
+node scripts/init_auth_indexes.mjs                              # once per database: users, sessions, tests
 python scripts/generate_vine_art.py                             # redraw the sign-in artwork
 node scripts/configure_vercel.mjs https://pax-eosin.vercel.app  # upload settings; origin is an argument
 node scripts/verify_deployment.mjs https://pax-eosin.vercel.app # check the live posture, signing nobody in
@@ -240,6 +240,38 @@ clipboard access is refused; Export test downloads the same text as a `.md` file
 Never add scoring to this path: the document must ask for the answer, never assert
 one. Revoke the blob URL on a later tick, since revoking in the same tick can
 cancel the download.
+
+**Past tests.** `server/history/` is the past tests feature, not the automated
+test suite in `tests/`. A sitting is stored with its questions copied in, not
+referenced, so a record of what someone was asked never changes when the bank is
+rebuilt. The collection is `tests`, indexed on `{ userId, finishedAt }`.
+
+`GET /api/tests` lists a page of summaries, `GET /api/tests?id=...` returns one
+sitting, and `POST /api/tests` keeps one. There is no dynamic route segment: an id
+is a query parameter, deliberately, because a catch-all file already proved
+unreliable on Vercel. The browser generates the sitting id, so a retried save
+replaces the record rather than adding a row. Every read and write is scoped to
+the signed-in user, and someone else's id is answered 404 rather than 403, so ids
+cannot be probed. The server sets `finishedAt` itself, so a browser cannot
+backdate a sitting.
+
+`server/history/routes.ts` validates the whole upload, because it is the only
+endpoint that accepts a body: sizes and ranges on every field, and a selection
+must name one of that question's own options. Keep it that way, and keep
+`readTest` the single entry point.
+
+**The review screen is shared.** `TestReview` renders both a paper just finished
+and one from history, showing every option with the chosen one marked and nothing
+about correctness. `toCompletedTest` in `src/history/api.ts` reshapes a stored
+sitting into the value the review screen and the exporter already understand, so
+there is one export path rather than two.
+
+**Section navigation collapses rather than crowding.** `src/shell/AppNav.tsx` is a
+row on a wide screen and a menu on a narrow one, so adding a section costs no
+horizontal room. Extend the `SECTIONS` list in `src/App.tsx` and nothing else.
+`src/shell/AccountMenu.tsx` is the profile bubble: the account and the way out
+live behind it, which is why the header no longer carries a labelled sign-out
+button. A browser test that signs out must open the bubble first.
 
 **Navigation is deliberately stacked and quiet.** Submit is the only control
 styled as a button, full width on its own line. Back and Next sit beneath it as

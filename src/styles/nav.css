@@ -1,0 +1,181 @@
+/* Section navigation. A row when there is room, a menu when there is not, so
+   adding a section costs no horizontal space on a phone. */
+.app-sections {
+  position: relative;
+  min-width: 0;
+  margin-right: auto;
+}
+
+/* The collapsed control, shown only on a narrow screen. */
+.sections-toggle {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  max-width: 100%;
+}
+
+.sections-toggle-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sections-caret {
+  flex-shrink: 0;
+  transition: transform var(--duration) var(--ease);
+}
+
+.app-sections[data-open='true'] .sections-caret {
+  transform: rotate(180deg);
+}
+
+.sections-list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.section-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.section-item:hover {
+  background: var(--wash);
+}
+
+.section-item[aria-current='page'] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+@media (max-width: 860px) {
+  .sections-toggle {
+    display: inline-flex;
+  }
+
+  .sections-menu {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    left: 0;
+    z-index: 20;
+    min-width: 15rem;
+    max-width: min(20rem, calc(100vw - var(--space-6)));
+    padding: var(--space-3);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+  }
+
+  .app-sections[data-open='false'] .sections-menu {
+    display: none;
+  }
+
+  .sections-list {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .section-item {
+    width: 100%;
+    justify-content: start;
+  }
+
+}
+
+/* ---- Account bubble, top right ---- */
+.account {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.account-bubble {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: var(--text-md);
+  font-weight: 800;
+  line-height: 1;
+  transition: box-shadow var(--duration) var(--ease);
+}
+
+.account-bubble:hover {
+  box-shadow: var(--shadow-card);
+}
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 20;
+  min-width: 14rem;
+  max-width: min(18rem, calc(100vw - var(--space-6)));
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.account[data-open='false'] .account-menu {
+  display: none;
+}
+
+.account-name {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.account-email {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.account-signout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  transition: background var(--duration) var(--ease);
+}
+
+.account-signout:hover {
+  background: var(--wash);
+}

@@ -13,6 +13,8 @@ import {
   type AuthRequest,
 } from './server/auth/routes';
 import { SESSION_COOKIE, serialiseCookie, signSessionToken } from './server/auth/tokens';
+import { mongoHistoryStore } from './server/history/store';
+import { handleHistoryRequest } from './server/history/routes';
 import { SESSION_TTL_MS } from './server/auth/store';
 
 const DEV_SIGN_IN_PATH = '/api/auth/dev-sign-in';
@@ -30,6 +32,25 @@ function toAuthRequest(req: IncomingMessage): AuthRequest {
     // Development is plain HTTP, so cookies cannot carry Secure here.
     secure: false,
   };
+}
+
+/** Reads a JSON body, capped so a huge upload cannot be buffered. */
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  if (req.method !== 'POST') return undefined;
+  const limit = 2 * 1024 * 1024;
+  let size = 0;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > limit) throw new Error('Body too large');
+    chunks.push(chunk as Buffer);
+  }
+  if (!size) return undefined;
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return undefined;
+  }
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
@@ -109,6 +130,23 @@ function paxApi(env: Record<string, string>): Plugin {
         }
         for (const [name, value] of Object.entries(result.headers)) res.setHeader(name, value);
         res.statusCode = result.status;
+        res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
+        return;
+      }
+
+      if (request.path === '/api/tests') {
+        const reader = await authenticate(auth, request);
+        if (!reader) {
+          sendJson(res, 401, { error: 'Sign in to see your past tests.' });
+          return;
+        }
+        const result = await handleHistoryRequest(mongoHistoryStore(auth.config), reader.user._id, {
+          method: request.method,
+          query: request.query,
+          body: await readJsonBody(req),
+        });
+        res.statusCode = result.status;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
         return;
       }

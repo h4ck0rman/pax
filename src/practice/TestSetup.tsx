@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import PastTestsTable from '../history/PastTestsTable';
 import { DURATIONS, QUESTION_COUNTS, type TestConfig } from './types';
 
 type Props = {
   busy: boolean;
   error: string;
   onStart: (config: TestConfig) => void;
+  /** Opens a past sitting for review. */
+  onOpenPast: (id: string) => void;
 };
 
 /** Curate a test: how many questions, and how long to sit it. */
-export default function TestSetup({ busy, error, onStart }: Props) {
+export default function TestSetup({ busy, error, onStart, onOpenPast }: Props) {
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [minutes, setMinutes] = useState<number>(15);
 
@@ -78,12 +81,7 @@ export default function TestSetup({ busy, error, onStart }: Props) {
         </div>
       </form>
 
-      <footer className="question-source">
-        <span className="question-source-line">
-          The bank has no verified answer keys, so Pax does not score a test. At the end you can
-          copy or export the paper with your answers for grading elsewhere.
-        </span>
-      </footer>
+      <PastTestsTable onOpen={onOpenPast} />
     </section>
   );
 }
