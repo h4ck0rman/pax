@@ -121,6 +121,11 @@ export function readTest(body: unknown, userId: string): TestRecord {
     minutes: wholeNumber(raw.minutes, 1, 600, 'minutes'),
     usedSeconds: wholeNumber(raw.usedSeconds, 0, 86_400, 'usedSeconds'),
     expired: raw.expired === true,
+    // 0 means the sitting drew from every year. Any other value must be a year a
+    // paper could carry, not an arbitrary number.
+    minYear: raw.minYear === undefined || raw.minYear === null || raw.minYear === 0
+      ? 0
+      : wholeNumber(raw.minYear, 1980, 2049, 'minYear'),
     questionCount: answers.length,
     answeredCount: answers.filter(answer => answer.selected).length,
     finishedAt: new Date(),

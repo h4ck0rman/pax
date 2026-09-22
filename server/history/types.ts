@@ -32,6 +32,9 @@ export type TestRecord = {
   expired: boolean;
   questionCount: number;
   answeredCount: number;
+  /** The earliest paper year the sitting drew from, or 0 for every year. Kept so
+   *  a past sitting still says what it was drawn from. */
+  minYear: number;
   finishedAt: Date;
   answers: StoredAnswer[];
 };
@@ -44,6 +47,7 @@ export type TestSummary = {
   expired: boolean;
   questionCount: number;
   answeredCount: number;
+  minYear: number;
   finishedAt: string;
 };
 

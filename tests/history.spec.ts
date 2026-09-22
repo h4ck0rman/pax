@@ -3,14 +3,10 @@ import { test, expect, type Page } from '@playwright/test';
 
 test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
 
-/** Opens the section, coping with the nav collapsing on a narrow screen. */
+/** Waits for the setup screen, which is what the app opens on. */
 const openPracticeTest = async (page: Page) => {
   await page.goto('/');
-  // Wait for the shell, or the toggle check runs before the nav exists.
   await expect(page.locator('.app-sections')).toBeVisible();
-  const toggle = page.locator('.sections-toggle');
-  if (await toggle.isVisible()) await toggle.click();
-  await page.getByRole('button', { name: 'Practice test' }).click();
   await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 };
 

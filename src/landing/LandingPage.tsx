@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, BookOpen, ClipboardCopy, Clock3, LogIn } from 'lucide-react';
+import { ArrowDown, ArrowRight, CalendarRange, ClipboardCopy, Clock3, LogIn } from 'lucide-react';
 import VineArt from '../auth/VineArt';
 
 /** The sign-in page, which holds the Google button. A failed sign-in lands
@@ -7,16 +7,16 @@ const SIGN_IN = '/login';
 
 const FEATURES = [
   {
-    icon: BookOpen,
-    title: 'Question bank',
-    detail:
-      'Open on the first question and draw at random from there. Back returns to anything you have already seen, with your answer still on it.',
-  },
-  {
     icon: Clock3,
     title: 'Practice tests',
     detail:
       'Pick a length and a time limit, then sit it against a countdown. Pause stops the clock and hides the question, so a break costs you nothing.',
+  },
+  {
+    icon: CalendarRange,
+    title: 'Papers by year',
+    detail:
+      'Draw from every paper in the bank, or narrow the sitting to the recent years only. The year comes from the paper each question was found in.',
   },
   {
     icon: ClipboardCopy,
@@ -30,8 +30,8 @@ const STEPS = [
   { number: '01', title: 'Sign in', detail: 'One Google account, on the invite list.' },
   {
     number: '02',
-    title: 'Work through questions',
-    detail: 'A bank to browse, or a paper against the clock.',
+    title: 'Sit a paper',
+    detail: 'Choose the length, the time, and how far back to draw from.',
   },
   {
     number: '03',

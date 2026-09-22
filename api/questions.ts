@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { atlasQuestionStore } from '../server/question-store.js';
+import { atlasQuestionStore, EARLIEST_YEAR, LATEST_YEAR } from '../server/question-store.js';
 import { AuthConfigError } from '../server/auth/config.js';
 import { authenticate, resolveAuthDeps } from '../server/auth/routes.js';
 import { describeError } from '../server/log.js';
@@ -45,12 +45,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     offset: Number(url.searchParams.get('offset') || 0),
     limit: Number(url.searchParams.get('limit') || 1),
     random: url.searchParams.get('random') === 'true',
+    minYear: Number(url.searchParams.get('minYear') || 0),
   };
   if (
-    ![params.offset, params.limit].every(Number.isSafeInteger) ||
+    ![params.offset, params.limit, params.minYear].every(Number.isSafeInteger) ||
     params.offset < 0 ||
     params.limit < 1 ||
-    params.limit > 100
+    params.limit > 100 ||
+    (params.minYear !== 0 && (params.minYear < EARLIEST_YEAR || params.minYear > LATEST_YEAR))
   ) {
     res.status(400).json({ error: 'Invalid pagination' });
     return;

@@ -89,10 +89,20 @@ export default function PracticeTest() {
     setDrawing(true);
     setError('');
     try {
-      const page = await fetchQuestions({ random: true, limit: chosen.questionCount });
+      const page = await fetchQuestions({
+        random: true,
+        limit: chosen.questionCount,
+        minYear: chosen.minYear,
+      });
       // A random draw can repeat a document, so keep the first of each.
       const unique = [...new Map(page.questions.map(item => [item.id, item])).values()];
-      if (!unique.length) throw new Error('No questions are available right now.');
+      if (!unique.length) {
+        throw new Error(
+          chosen.minYear
+            ? `No questions are available from papers ${chosen.minYear} onwards.`
+            : 'No questions are available right now.',
+        );
+      }
       setConfig({ ...chosen, questionCount: unique.length });
       setAnswers(unique.map(question => ({ question, selected: null })));
       setIndex(0);

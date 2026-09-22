@@ -12,6 +12,7 @@ const SUMMARY_FIELDS = {
   expired: 1,
   questionCount: 1,
   answeredCount: 1,
+  minYear: 1,
   finishedAt: 1,
 } as const;
 
@@ -22,6 +23,8 @@ const toSummary = (record: Omit<TestRecord, 'answers' | 'userId'>): TestSummary 
   expired: record.expired,
   questionCount: record.questionCount,
   answeredCount: record.answeredCount,
+  // Sittings kept before the year filter existed carry no minYear.
+  minYear: record.minYear ?? 0,
   finishedAt: record.finishedAt.toISOString(),
 });
 

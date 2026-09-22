@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, ClipboardCopy, Clock3 } from 'lucide-react';
+import { ArrowLeft, CalendarRange, ClipboardCopy, Clock3 } from 'lucide-react';
 import GoogleMark from './GoogleMark';
 import VineArt from './VineArt';
 
@@ -15,14 +15,14 @@ const MESSAGES: Record<string, string> = {
 
 const FEATURES = [
   {
-    icon: BookOpen,
-    title: 'Question bank',
-    detail: 'Thousands of candidates pulled from past papers, one at a time.',
-  },
-  {
     icon: Clock3,
     title: 'Practice tests',
     detail: 'Choose a length and a time limit, then sit it against a clock.',
+  },
+  {
+    icon: CalendarRange,
+    title: 'Papers by year',
+    detail: 'Draw from every past paper, or from the recent years only.',
   },
   {
     icon: ClipboardCopy,

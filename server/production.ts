@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { QuestionQuery } from './question-store.js';
+import { EARLIEST_YEAR, LATEST_YEAR, type QuestionQuery } from './question-store.js';
 import { authenticate, handleAuthRequest, type AuthDeps, type AuthRequest } from './auth/routes.js';
 import { secureCookiesFor } from './auth/config.js';
 import { handleHistoryRequest } from './history/routes.js';
@@ -133,12 +133,14 @@ export function createProductionServer(config: {
           offset: Number(request.query.get('offset') || 0),
           limit: Number(request.query.get('limit') || 1),
           random: request.query.get('random') === 'true',
+          minYear: Number(request.query.get('minYear') || 0),
         };
         if (
-          ![params.offset, params.limit].every(Number.isSafeInteger) ||
+          ![params.offset, params.limit, params.minYear].every(Number.isSafeInteger) ||
           params.offset < 0 ||
           params.limit < 1 ||
-          params.limit > 100
+          params.limit > 100 ||
+          (params.minYear !== 0 && (params.minYear < EARLIEST_YEAR || params.minYear > LATEST_YEAR))
         ) {
           res.statusCode = 400;
           res.end(JSON.stringify({ error: 'Invalid pagination' }));

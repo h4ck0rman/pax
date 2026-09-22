@@ -8,13 +8,13 @@ test('a visitor without a session sees the sign-in page and no questions', async
 
   // None of the app is reachable.
   await expect(page.locator('.question-stem')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Question bank' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Practice test' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Start test' })).toHaveCount(0);
   await expect(page.locator('.account-bubble')).toHaveCount(0);
 });
 
 test('the question bank refuses an unauthenticated request', async ({ request }) => {
-  for (const query of ['', '?random=true&limit=5', '?search=asthma', '?offset=10']) {
+  for (const query of ['', '?random=true&limit=5', '?search=asthma', '?offset=10', '?minYear=2022']) {
     const response = await request.get(`/api/questions${query}`);
     expect(response.status(), query).toBe(401);
     const body = await response.json();
@@ -123,8 +123,8 @@ test('the landing page describes what Pax offers', async ({ page }) => {
 
   const features = page.locator('.feature-cards li');
   await expect(features).toHaveCount(3);
-  await expect(features.nth(0)).toContainText('Question bank');
-  await expect(features.nth(1)).toContainText('Practice tests');
+  await expect(features.nth(0)).toContainText('Practice tests');
+  await expect(features.nth(1)).toContainText('Papers by year');
   await expect(features.nth(2)).toContainText('Export for marking');
 
   await expect(page.locator('.steps li')).toHaveCount(3);

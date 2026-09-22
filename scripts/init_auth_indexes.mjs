@@ -1,4 +1,4 @@
-// Creates the indexes the users and sessions collections need. Safe to rerun.
+// Creates the indexes the collections Pax reads need. Safe to rerun.
 import { MongoClient } from 'mongodb';
 
 process.loadEnvFile('.env');
@@ -22,7 +22,16 @@ try {
   // Past tests: every query is "this person's sittings, newest first".
   await db.collection('tests').createIndex({ userId: 1, finishedAt: -1 }, { name: 'userId_finishedAt' });
 
-  for (const name of ['users', 'sessions', 'tests']) {
+  // Questions: every read filters on structural_status, optionally narrows to a
+  // paper year, and then pages by _id. Without this a deployment pointed at a
+  // database someone else imported scans the collection on every request.
+  await db.collection('questions').createIndex(
+    { structural_status: 1, paper_year: 1, _id: 1 },
+    { name: 'structural_status_paper_year_id' },
+  );
+  await db.collection('questions').createIndex({ structural_status: 1, _id: 1 }, { name: 'structural_status_1__id_1' });
+
+  for (const name of ['users', 'sessions', 'tests', 'questions']) {
     const indexes = await db.collection(name).indexes();
     console.log(`${name}: ${indexes.map(index => index.name).join(', ')}`);
   }

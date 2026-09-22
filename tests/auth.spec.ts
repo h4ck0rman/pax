@@ -9,11 +9,11 @@ async function signOut(page: import('@playwright/test').Page) {
 test('a signed-in reader sees their account and the app', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('button', { name: 'Question bank' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Practice test' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Practice test' })).toBeVisible();
   await expect(page.locator('.account-bubble')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Continue with Google' })).toHaveCount(0);
-  await expect(page.locator('.question-stem')).toBeVisible();
+  // Signing in lands on the practice test setup, which is the whole app now.
+  await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 });
 
 test('who am I returns the signed-in account and no secrets', async ({ request }) => {
@@ -30,11 +30,11 @@ test('who am I returns the signed-in account and no secrets', async ({ request }
 
 test('the session survives a reload', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.question-stem')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 
   await page.reload();
   await expect(page.locator('.account-bubble')).toBeVisible();
-  await expect(page.locator('.question-stem')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 });
 
 /** Signing out revokes a session record, so these tests mint their own rather
@@ -48,7 +48,7 @@ async function ownSession(page: import('@playwright/test').Page) {
 
 test('signing out ends the session for the API as well as the page', async ({ page }) => {
   await ownSession(page);
-  await expect(page.locator('.question-stem')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
   expect((await page.request.get('/api/questions')).status()).toBe(200);
 
   await signOut(page);
@@ -79,7 +79,7 @@ test('a revoked session cannot be replayed with the original cookie', async ({ p
 
 test('the session cookie is not readable by scripts', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.question-stem')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 
   const visible = await page.evaluate(() => document.cookie);
   expect(visible).not.toContain('pax_session');
@@ -92,7 +92,6 @@ test('the session cookie is not readable by scripts', async ({ page }) => {
 
 test('the practice test still works for a signed-in reader', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Practice test' }).click();
   await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 
   await page.locator('.setup-field', { hasText: 'Questions' }).locator('select').selectOption('5');

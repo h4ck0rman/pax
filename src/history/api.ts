@@ -7,6 +7,8 @@ export type TestSummary = {
   expired: boolean;
   questionCount: number;
   answeredCount: number;
+  /** The earliest paper year the sitting drew from. 0 means every year. */
+  minYear: number;
   finishedAt: string;
 };
 
@@ -40,6 +42,7 @@ export async function saveTest(test: CompletedTest, id: string): Promise<void> {
     body: JSON.stringify({
       id,
       minutes: test.config.minutes,
+      minYear: test.config.minYear,
       usedSeconds: test.usedSeconds,
       expired: test.expired,
       answers: test.answers.map(answer => ({
@@ -93,7 +96,12 @@ export async function fetchTest(id: string, signal?: AbortSignal): Promise<TestD
  *  already understand, so history and a just-finished paper share one path. */
 export function toCompletedTest(detail: TestDetail): CompletedTest {
   return {
-    config: { questionCount: detail.questionCount, minutes: detail.minutes },
+    config: {
+      questionCount: detail.questionCount,
+      minutes: detail.minutes,
+      // Sittings kept before the year filter existed carry no minYear.
+      minYear: detail.minYear ?? 0,
+    },
     usedSeconds: detail.usedSeconds,
     expired: detail.expired,
     finishedAt: Date.parse(detail.finishedAt),

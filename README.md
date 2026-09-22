@@ -19,37 +19,38 @@ npm run dev
 Open http://127.0.0.1:5173. Use `npm run build` for a production build and
 `npm run preview` to preview it locally.
 
-The frontend is being rebuilt feature by feature from an empty shell. Question
-Bank is in: it opens on the first question in the bank and draws a random one
-each time you choose Next. Back walks back through the questions already
-drawn, keeping each one's selection. Submit commits an answer and locks that
-question's options.
-
-Practice Test is in too. Choose a question count and a time limit, then sit the
-paper against a countdown. A command bar above the question shows the time left,
-how far through you are and how many you have answered, and lets you pause, which
+Pax does one thing: it sets you a practice paper. Choose a question count, a time
+limit and how far back to draw papers from, then sit it against a countdown. A
+command bar above the question shows the time left, how far through you are and
+how many you have answered, and lets you pause, which
 stops the clock and hides the question, or stop, which ends the sitting. Running
 out of time ends it automatically. At the end, Copy for LLM puts the whole paper
 on the clipboard and Export test downloads it as Markdown, each containing every
 question, its options, your answer and instructions for a language model to grade
 it.
 
-Finished tests are kept against your account. The Practice Test screen lists the
-ten most recent under the start control, and opening one shows every question with
-all of its options and the one you chose, with the same copy and export controls.
+The paper range narrows a sitting to recent exams. Years come from the source
+documents' file and folder names rather than from the questions themselves, so a
+question in study material with no year on it is left out as soon as you choose a
+range. The setup screen says how large the pool you picked is.
 
-Nothing is marked correct and nothing is scored anywhere in Pax, because the
-bank has no verified answer keys. Design
+Finished tests are kept against your account. The setup screen lists the ten most
+recent under the start control, and opening one shows every question with all of
+its options and the one you chose, with the same copy and export controls.
+
+Nothing is marked correct and nothing is scored anywhere in Pax, because the bank
+has no verified answer keys. Design
 tokens, element defaults, shell layout, and feature styles live in separate files
-under `src/styles/`. The earlier question bank and practice exam interface is
-retired rather than deleted, and is recoverable from the `pre-rebuild-baseline`
-tag.
+under `src/styles/`. The pre-rebuild interface is retired rather than deleted, and
+is recoverable from the `pre-rebuild-baseline` tag.
 
 The Vite server and preview server expose GET `/api/questions`. Set
 `QUESTION_STORE=mongodb` in the ignored `.env` to use Atlas, or `sqlite` to
 read `data/extraction/questions.sqlite` with Python. Only `structurally_clean`
 candidates are served (5,374 in the current extraction); these are still
-medically unreviewed. Credentials stay on the server. A static-only deployment
+medically unreviewed. The endpoint takes `search`, `offset`, `limit`, `random` and
+`minYear`; `minYear` is 0 for no filter or a whole year, and anything else is
+refused rather than ignored. Credentials stay on the server. A static-only deployment
 needs a separate backend. See [MongoDB setup](docs/mongodb.md) for migration,
 configuration, verification, and switching back to SQLite.
 
@@ -75,14 +76,15 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Browser tests cover the shell, the question box, and the bank: real database
-questions, the palette and locally loaded fonts, line-wrap collapsing, single
-selection, opening on question 1 and drawing randomly after that, walking back
-and forward through a session without refetching, submitting and locking an
-answer, restarting from the nav, database failures and recovery, and the
-navigation layout holding down to a 320px viewport. The practice test suite drives
-a deterministic clock to cover setup, the command bar, pause excluding its own
-time, stop, expiry, and both export routes. Separate projects cover the signed-out
+Browser tests cover the shell and the question box against real database
+questions: the palette and locally loaded fonts, line-wrap collapsing, single
+selection, committing and locking an answer, database failures and recovery, and
+the navigation layout holding down to a 320px viewport. The practice test suite
+drives a deterministic clock to cover setup, the command bar, pause excluding its
+own time, stop, expiry, and both export routes. A further suite covers the paper
+range: that a narrowed draw only returns questions from that year onwards, that
+an unnarrowed one still includes undated material, that a nonsense year is
+refused, and that a saved sitting remembers the range it drew from. Separate projects cover the signed-out
 case: the sign-in page, the public policy pages, forged cookies, and the sign-in
 redirect. Playwright
 matches only `**/*.spec.ts`; the `*.test.mjs` auth gate suites run under

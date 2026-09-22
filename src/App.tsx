@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Clock3 } from 'lucide-react';
-import QuestionBank from './questions/QuestionBank';
+import { Clock3 } from 'lucide-react';
 import PracticeTest from './practice/PracticeTest';
 import LandingPage from './landing/LandingPage';
 import LoginPage from './auth/LoginPage';
@@ -9,11 +8,10 @@ import AppNav, { type SectionOption } from './shell/AppNav';
 import AccountMenu from './shell/AccountMenu';
 import { useAuth } from './auth/AuthProvider';
 
-type Section = 'bank' | 'test';
+type Section = 'test';
 
 /** The one list to extend when a section is added. */
 const SECTIONS: readonly SectionOption<Section>[] = [
-  { id: 'bank', label: 'Question bank', icon: BookOpen },
   { id: 'test', label: 'Practice test', icon: Clock3 },
 ];
 
@@ -37,7 +35,7 @@ function signInReason(): string | null {
 
 export default function App() {
   const auth = useAuth();
-  const [section, setSection] = useState<Section>('bank');
+  const [section, setSection] = useState<Section>('test');
   // Choosing the current section again restarts it, by remounting the feature.
   const [restarts, setRestarts] = useState(0);
 
@@ -97,8 +95,6 @@ export default function App() {
               </button>
             </div>
           </section>
-        ) : section === 'bank' ? (
-          <QuestionBank key={`bank-${restarts}`} />
         ) : (
           <PracticeTest key={`test-${restarts}`} />
         )}

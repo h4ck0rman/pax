@@ -13,7 +13,7 @@ test('shell renders without console or page errors', async ({ page }) => {
   await expect(page.locator('main.app-main')).toBeVisible();
   await expect(page.locator('footer.app-footer')).toBeVisible();
   // The level 1 heading names the section on screen, for assistive technology.
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Question bank');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Practice test');
   expect(problems).toEqual([]);
 });
 

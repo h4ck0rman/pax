@@ -7,6 +7,7 @@ import { createProductionServer } from '../dist-server/production.js';
 import { readAuthConfig } from '../dist-server/auth/config.js';
 import { SESSION_COOKIE, signSessionToken } from '../dist-server/auth/tokens.js';
 import { SESSION_TTL_MS } from '../dist-server/auth/store.js';
+import { questionFilter } from '../dist-server/question-store.js';
 
 const SECRET = 'a-test-only-session-secret-of-sufficient-length';
 const config = readAuthConfig({
@@ -77,12 +78,14 @@ function historyStore() {
 
 async function start({ revoked = false } = {}) {
   let queries = 0;
+  const asked = [];
   const history = historyStore();
   const server = createProductionServer({
     dist: resolve('dist'),
     store: {
-      async query() {
+      async query(params) {
         queries += 1;
+        asked.push(params);
         return { total: 1, questions: [] };
       },
     },
@@ -95,6 +98,7 @@ async function start({ revoked = false } = {}) {
   return {
     base,
     history,
+    asked,
     get queries() {
       return queries;
     },
@@ -162,6 +166,26 @@ test('question data needs a live session and never leaks to a stranger', async (
   }
 });
 
+test('the shared question filter only ever serves clean candidates', () => {
+  const base = questionFilter({ search: '', minYear: 0 });
+  assert.deepEqual(base, { structural_status: 'structurally_clean' });
+  assert.equal('paper_year' in base, false, 'no year means every year, not a null year');
+
+  const dated = questionFilter({ search: '', minYear: 2022 });
+  assert.deepEqual(dated.paper_year, { $gte: 2022 });
+  assert.equal(dated.structural_status, 'structurally_clean');
+
+  // A year outside the range is clamped rather than passed through, because the
+  // transports validate first and this is the second line of defence.
+  assert.deepEqual(questionFilter({ search: '', minYear: 12 }).paper_year, { $gte: 1980 });
+  assert.deepEqual(questionFilter({ search: '', minYear: 99999 }).paper_year, { $gte: 2049 });
+
+  // Search is a literal substring, so regex metacharacters cannot change it.
+  const searched = questionFilter({ search: 'a.b*c', minYear: 0 });
+  assert.equal(searched.stem.$regex, 'a\\.b\\*c');
+  assert.equal(searched.stem.$options, 'i');
+});
+
 test('a revoked session is refused even with a validly signed token', async () => {
   const app = await start({ revoked: true });
   try {
@@ -177,9 +201,28 @@ test('the signed-in API still validates its inputs', async () => {
   const app = await start();
   const headers = { cookie: await cookie() };
   try {
-    for (const query of ['?limit=0', '?limit=101', '?offset=-1', '?limit=abc']) {
+    const refused = [
+      '?limit=0',
+      '?limit=101',
+      '?offset=-1',
+      '?limit=abc',
+      // A paper year outside the range a paper could carry is a mistake, not a
+      // filter, and must not reach the store.
+      '?minYear=1200',
+      '?minYear=9999',
+      '?minYear=abc',
+      '?minYear=2022.5',
+    ];
+    for (const query of refused) {
       assert.equal((await fetch(app.base + '/api/questions' + query, { headers })).status, 400, query);
     }
+    assert.equal(app.asked.length, 0, 'a refused query must not reach the store');
+
+    // A year in range is passed through, and no year means every year.
+    assert.equal((await fetch(app.base + '/api/questions?minYear=2022', { headers })).status, 200);
+    assert.equal(app.asked.at(-1).minYear, 2022);
+    assert.equal((await fetch(app.base + '/api/questions', { headers })).status, 200);
+    assert.equal(app.asked.at(-1).minYear, 0);
     const post = await fetch(app.base + '/api/questions', { method: 'POST', headers });
     assert.equal(post.status, 405);
     assert.equal((await fetch(app.base + '/api/unknown', { headers })).status, 404);

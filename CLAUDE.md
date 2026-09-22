@@ -31,6 +31,7 @@ npm run test:vercel-gate                                # auth gate for middlewa
 npm run build && node --test tests/auth.test.mjs        # session, token, cookie and OAuth unit tests
 node scripts/init_auth_indexes.mjs                      # once per database
 python -m unittest discover -s scripts -p test_extract_questions.py
+python -m unittest discover -s scripts -p test_paper_year.py
 python -m unittest discover -s scripts -p test_extract_questions.py -k test_word_list_numbering
 ```
 
@@ -50,6 +51,8 @@ python -m pip install --target .tools/mongodb -r requirements-mongodb.txt
 python scripts/mongo_config.py                 # connection smoke test
 python scripts/migrate_mongodb.py              # dry run
 python scripts/migrate_mongodb.py --apply      # import + verify; --verify checks only
+python scripts/migrate_mongodb.py --refresh-derived  # push derived fields onto existing records
+python scripts/backfill_paper_year.py          # add paper_year and the read indexes to existing SQLite
 python scripts/verify_question_api.py          # compares a running dev server against SQLite
 ```
 
@@ -93,6 +96,36 @@ Atlas pool in `server/question-store.ts`. Production and Vercel are Atlas-only.
 Store failures return 503 with a generic message rather than falling back to the
 other store. Only `structural_status = 'structurally_clean'` rows are ever
 served: 5,374 of 22,947 candidates in the current extraction.
+
+**The paper year is derived, and it is the only usable category.** No extracted
+record carries a subject, a topic or an exam year of its own. The year is read
+from the source document's path by `scripts/paper_year.py`, which is the single
+source of truth for the derivation and is imported by both the extractor and the
+backfill. It reads the deepest path segment naming a year, skipping the download
+archive that stamps its own year on everything beneath it and skipping spans like
+`1999-2011 RACP Past Papers`. A path naming no year yields `None`, which is a real
+answer: 4,480 of the 5,374 servable questions have a year, and the 894 without are
+mostly study slides and textbooks. Subject is only recoverable for about 16% of
+them, because most come from mixed full papers, so there is deliberately no
+subject filter. Change the derivation only in `paper_year.py`, and rerun the
+backfill plus `--refresh-derived` afterwards.
+
+`minYear` is the sixth thing every copy of the questions endpoint must agree on.
+Zero means no filter; anything else must be a whole number between
+`EARLIEST_YEAR` and `LATEST_YEAR` in `server/question-store.ts`, and anything
+else is a 400. A year filter also drops undated material, since `paper_year IS
+NULL` cannot satisfy it. `questionFilter` in `server/question-store.ts` builds
+the Mongo filter for every caller so the clean-candidate condition is written
+once.
+
+**Questions need their own indexes, and nothing created them before.** Atlas has
+`{ structural_status, paper_year, _id }` as `structural_status_paper_year_id`, and
+SQLite has `questions(structural_status, paper_year)` plus
+`occurrences(question_id)`. `init_auth_indexes.mjs` and `migrate_mongodb.py` both
+create the Atlas one, so a fresh deployment is not left scanning. The SQLite
+`occurrences` index is the one that mattered most: without it, the per-question
+source lookup scanned all 46,992 rows and a fifty-question draw took 600ms
+instead of 17ms.
 
 **Auth is Google sign-in with server-side sessions.** `server/auth/` holds it
 all: `config.ts` reads and validates settings, `google.ts` does the OAuth
@@ -154,6 +187,16 @@ what makes the Atlas import idempotent and resumable. `migrate_mongodb.py`
 inserts missing IDs only and stops on any content mismatch instead of
 overwriting a record that may carry manual review status.
 
+A derived field must not break the import fingerprint. `migrate_mongodb.py` keeps
+two exclusion sets for this reason: `NOT_FINGERPRINTED` leaves a field out of the
+hash, and `NOT_COMPARED` leaves it out of the mismatch check. `paper_year` is in
+both, because every record already in Atlas was fingerprinted before the field
+existed, and hashing it would have invalidated all of them. Add any future
+derived field the same way, and push it to existing records with
+`migrate_mongodb.py --refresh-derived` rather than a reimport.
+`scripts/backfill_paper_year.py` does the same job for an existing SQLite file, so
+adding the year did not require re-running extraction over `resources/`.
+
 ## Constraints that matter
 
 - The bank has **no verified answer keys**. Never compute scores, mark options
@@ -199,27 +242,23 @@ and each feature's styles are separate files under `src/styles/`, imported in
 that order from `index.css`. Features add a stylesheet rather than extending the
 shell rules.
 
-**Question bank.** `src/questions/QuestionBank.tsx` owns data and navigation;
+**One mode, and one section.** Sitting a practice test is the only thing the app
+does. The browse-one-question-at-a-time bank was removed, so `src/App.tsx` has a
+single `SECTIONS` entry and opens on it. Anything that reaches the practice test
+by clicking the nav is navigating to where it already is: `AppNav` collapses to a
+toggle below 860px, and that toggle is labelled with the current section, so a
+nav click on a narrow screen matches two buttons named the same thing. Wait for
+the setup heading instead.
+
 `QuestionBox.tsx` is presentational and takes the question, position, selection,
-submitted flag, and a navigation slot as children. The bank opens on the first
-question, and every later draw is random, so the on-screen number is how many
-questions this session has shown, not an index into the bank.
-
-Drawn questions accumulate in a session history. `{ entries, index }` is one
-state value so appending a draw and moving to it stays a single pure update, and
-Previous walks back while Next replays the history before drawing anything new. A
-request carries a nonce, and the last applied nonce is held in a ref, so a
-StrictMode double-invoked effect cannot append the same draw twice and a retry
-still refetches.
-
-Submit commits the selection for the current question and locks its options. They
-use `aria-disabled` rather than `disabled`, so a reader can still focus them to
-review a choice. Playwright treats `aria-disabled` as not clickable, so a test
-that needs to prove the handler ignores a click must use `dispatchEvent('click')`
-instead of `click()`.
+submitted flag, and a navigation slot as children. Selecting an option and
+committing it locks that question's options. They use `aria-disabled` rather than
+`disabled`, so a reader can still focus them to review a choice. Playwright
+treats `aria-disabled` as not clickable, so a test that needs to prove the
+handler ignores a click must use `dispatchEvent('click')` instead of `click()`.
 
 **Practice test.** `src/practice/` holds a three phase feature: `TestSetup`
-curates a sitting by question count and minutes, `PracticeTest` runs it, and
+curates a sitting by question count, minutes and paper year, `PracticeTest` runs it, and
 `TestReview` ends it. `TestBar` is the command bar above the card during a
 sitting, carrying the countdown, progress, pause and stop. `QuestionBox` is
 reused for each question, which is why its right-hand label is a `count` prop
@@ -313,9 +352,11 @@ signed in, it shows the app. Client-side paths need a fallback to the shell, whi
 as a rewrite and `server/production.ts` as an in-memory lookup that still 404s
 anything looking like a file.
 
-The pre-rebuild question bank and practice exam UI is not deleted, only retired:
-recover it from the `pre-rebuild-baseline` tag or the `backup/pre-rebuild`
-branch, for example `git show pre-rebuild-baseline:src/App.tsx`.
+The pre-rebuild interface is not deleted, only retired: recover it from the
+`pre-rebuild-baseline` tag or the `backup/pre-rebuild` branch, for example
+`git show pre-rebuild-baseline:src/App.tsx`. The rebuilt question bank that
+replaced it and was then removed in favour of practice tests only is at
+`git show d96fb8c:src/questions/QuestionBank.tsx`.
 
 ## Docs
 

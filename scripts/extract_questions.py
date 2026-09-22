@@ -16,6 +16,8 @@ import sys
 import xml.etree.ElementTree as ET
 import zipfile
 
+from paper_year import paper_year, paper_years
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / '.tools' / 'extraction'))
 VERSION = '1'
@@ -406,17 +408,31 @@ def run(resources, output):
         DROP TABLE IF EXISTS options; DROP TABLE IF EXISTS occurrences;
         DROP TABLE IF EXISTS questions; DROP TABLE IF EXISTS documents;
         CREATE TABLE documents(path TEXT PRIMARY KEY, status TEXT, metadata_json TEXT);
-        CREATE TABLE questions(id TEXT PRIMARY KEY, stem TEXT, structural_status TEXT, flags_json TEXT, raw_text TEXT, review_status TEXT DEFAULT 'unreviewed');
+        CREATE TABLE questions(id TEXT PRIMARY KEY, stem TEXT, structural_status TEXT, flags_json TEXT, raw_text TEXT, review_status TEXT DEFAULT 'unreviewed', paper_year INTEGER);
         CREATE TABLE options(question_id TEXT REFERENCES questions(id), label TEXT, text TEXT, PRIMARY KEY(question_id,label));
-        CREATE TABLE occurrences(question_id TEXT REFERENCES questions(id), source TEXT REFERENCES documents(path), original_number TEXT, start TEXT, end TEXT, flags_json TEXT, structural_status TEXT);
+        CREATE TABLE occurrences(question_id TEXT REFERENCES questions(id), source TEXT REFERENCES documents(path), original_number TEXT, start TEXT, end TEXT, flags_json TEXT, structural_status TEXT, paper_year INTEGER);
+        -- The reader filters on structural_status and paper_year and then looks
+        -- each drawn question's options and first occurrence up by id. Without
+        -- these, every row of a draw scans the whole occurrences table.
+        CREATE INDEX questions_served ON questions(structural_status, paper_year);
+        CREATE INDEX occurrences_question ON occurrences(question_id);
         ''')
         db.executemany('INSERT INTO documents VALUES (?,?,?)', [(r['path'], r['status'], json.dumps(r, ensure_ascii=False)) for r in rows])
+        # The year of a paper is only ever named by the source path, so it is
+        # derived here rather than parsed out of the document text. A question
+        # found in several papers carries the most recent of them, because that
+        # is the year a reader filtering for recent papers means.
+        occurrence_years = {o['question_id']: [] for o in occurrences}
+        for o in occurrences:
+            o['paper_year'] = paper_year(o['source'])
+            occurrence_years[o['question_id']].append(o['source'])
         for q in unique.values():
-            db.execute('INSERT INTO questions(id,stem,structural_status,flags_json,raw_text) VALUES (?,?,?,?,?)',
-                       (q['id'], q['stem'], q['structural_status'], json.dumps(q['flags']), q['raw_text']))
+            q['paper_year'] = paper_years(occurrence_years.get(q['id'], []))
+            db.execute('INSERT INTO questions(id,stem,structural_status,flags_json,raw_text,paper_year) VALUES (?,?,?,?,?,?)',
+                       (q['id'], q['stem'], q['structural_status'], json.dumps(q['flags']), q['raw_text'], q['paper_year']))
             db.executemany('INSERT INTO options VALUES (?,?,?)', [(q['id'], o['label'], o['text']) for o in q['options']])
-        db.executemany('INSERT INTO occurrences VALUES (?,?,?,?,?,?,?)',
-                       [(o['question_id'], o['source'], o['number'], o['start'], o['end'], json.dumps(o['flags']), o['structural_status']) for o in occurrences])
+        db.executemany('INSERT INTO occurrences VALUES (?,?,?,?,?,?,?,?)',
+                       [(o['question_id'], o['source'], o['number'], o['start'], o['end'], json.dumps(o['flags']), o['structural_status'], o['paper_year']) for o in occurrences])
     integrity = db.execute('PRAGMA integrity_check').fetchone()[0]
     foreign_key_issues = db.execute('PRAGMA foreign_key_check').fetchall()
     db.close()
@@ -431,6 +447,8 @@ def run(resources, output):
                    unique_question_candidates=len(unique), question_occurrences=len(occurrences),
                    duplicate_question_occurrences=len(occurrences)-len(unique),
                    unique_structural_statuses=dict(Counter(q['structural_status'] for q in unique.values())),
+                   questions_by_paper_year=dict(sorted(Counter(str(q.get('paper_year')) for q in unique.values()).items())),
+                   questions_without_a_paper_year=sum(q.get('paper_year') is None for q in unique.values()),
                    occurrence_flags=dict(Counter(f for o in occurrences for f in o['flags'])),
                    processing=dict(counters), sqlite_integrity=integrity, sqlite_foreign_key_issues=foreign_key_issues,
                    limitations=['All questions are unreviewed candidates, not verified quiz content.',
@@ -439,6 +457,7 @@ def run(resources, output):
                                 'Low-text pages may be blank, graphical, or scanned.',
                                 'Question recall and precision have not been measured against a labelled dataset.',
                                 'Exact text deduplication only; near duplicates remain.',
+                                'Paper years are read from source file and folder names, not from document text, so material filed without a year carries none.',
                                 'JSON strings are flattened; arbitrary JSON schemas need an adapter.'])
     for name, obj in [('files', rows), ('summary', summary)]:
         (output / f'{name}.json').write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding='utf-8')

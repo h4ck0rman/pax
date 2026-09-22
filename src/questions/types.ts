@@ -12,6 +12,10 @@ export type Question = {
   stem: string;
   options: QuestionOption[];
   source: QuestionSource;
+  /** The year of the paper this came from, derived from the source path.
+   *  Null when the source names no year, which is a real answer: roughly one in
+   *  six candidates sit in undated study material. */
+  paper_year?: number | null;
 };
 
 export type QuestionPage = { total: number; questions: Question[] };

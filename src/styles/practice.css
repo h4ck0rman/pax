@@ -119,10 +119,18 @@
   font-weight: 400;
 }
 
+/* The paper range is a sentence rather than a number, so it needs the room the
+   two numeric fields do not. It still sits on one line beside them on a wide
+   screen and wraps under them on a narrow one. */
+.setup-field-wide {
+  flex: 2 1 14rem;
+}
+
 .setup-pace {
   margin-top: var(--space-4);
   font-size: var(--text-xs);
   color: var(--ink-faint);
+  line-height: 1.6;
 }
 
 /* ---- Review ---- */

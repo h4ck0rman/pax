@@ -1,4 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+/** QuestionBox is shared: the practice test is the one feature that renders it,
+ *  so these drive a real sitting rather than a browse mode. */
 
 /** Mirrors src/questions/text.ts: source line wraps collapse, blank lines stay. */
 const collapse = (text: string) =>
@@ -8,42 +11,55 @@ const collapse = (text: string) =>
     .filter(Boolean)
     .join(' ');
 
-test('renders a real question from the database with its options', async ({ page, request }) => {
-  const response = await request.get('/api/questions');
-  expect(response.ok()).toBeTruthy();
-  const firstPage = await response.json();
-  expect(firstPage.total).toBeGreaterThan(0);
-  const expected = firstPage.questions[0];
+type Drawn = { id: string; stem: string; options: { label: string; text: string }[] };
+
+/** Starts a sitting and hands back the questions the server actually drew, so an
+ *  assertion can be made against real database content without guessing which
+ *  random questions came back. */
+async function startTest(page: Page, questions = '5'): Promise<Drawn[]> {
+  const drawn: Drawn[] = [];
+  page.on('response', async response => {
+    const url = new URL(response.url());
+    if (url.pathname !== '/api/questions' || !response.ok()) return;
+    const body = await response.json().catch(() => null);
+    if (body?.questions) drawn.push(...body.questions);
+  });
 
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
+  await page.locator('.setup-field', { hasText: 'Questions' }).locator('select').selectOption(questions);
+  await page.getByRole('button', { name: 'Start test' }).click();
+  await expect(page.locator('.question-stem')).toBeVisible();
+  return drawn;
+}
 
-  await expect(page.locator('.question-stem')).toHaveText(collapse(expected.stem));
-  await expect(page.locator('.option')).toHaveCount(expected.options.length);
-  expect(expected.options.length).toBeGreaterThanOrEqual(2);
-  await expect(page.locator('.option-text').first()).toHaveText(collapse(expected.options[0].text));
+test('renders a real question from the database with its options', async ({ page }) => {
+  const drawn = await startTest(page);
+  expect(drawn.length).toBeGreaterThan(0);
+  const first = drawn[0];
+
+  await expect(page.locator('.question-stem')).toHaveText(collapse(first.stem));
+  await expect(page.locator('.option')).toHaveCount(first.options.length);
+  expect(first.options.length).toBeGreaterThanOrEqual(2);
+  await expect(page.locator('.option-text').first()).toHaveText(collapse(first.options[0].text));
 });
 
-test('labels the question with its number and the size of the bank', async ({ page, request }) => {
-  const firstPage = await (await request.get('/api/questions')).json();
-
-  await page.goto('/');
+test('labels the question with its number and the length of the paper', async ({ page }) => {
+  await startTest(page, '5');
 
   await expect(page.locator('.question-meta .eyebrow')).toHaveText('Question 1');
-  await expect(page.locator('.question-count')).toHaveText(
-    `${firstPage.total.toLocaleString('en-US')} in the bank`,
-  );
+  await expect(page.locator('.question-count')).toHaveText('of 5');
 });
 
 test('collapses source line wraps so the stem reflows', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('.question-stem')).toBeVisible();
+  await startTest(page);
 
   const stem = await page.locator('.question-stem').evaluate(node => node.textContent ?? '');
   expect(stem).not.toMatch(/\n/);
 });
 
 test('records one selection at a time and never marks an answer correct', async ({ page }) => {
-  await page.goto('/');
+  await startTest(page);
   const options = page.locator('.option');
   await expect(options.first()).toBeVisible();
 
@@ -61,19 +77,19 @@ test('records one selection at a time and never marks an answer correct', async 
   await options.nth(1).click();
   await expect(options.nth(1)).toHaveAttribute('aria-pressed', 'false');
 
+  // Stems legitimately contain "score" and "incorrect", so assert on Pax's own
+  // copy and on the absence of marking, never on the whole card.
   await expect(page.locator('.question-box')).not.toContainText(/correct answer/i);
-  await expect(page.locator('.question-box')).not.toContainText(/score/i);
+  await expect(page.locator('.option-mark svg')).toHaveCount(0);
 });
 
 test('names the source and marks the question unreviewed', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('.question-stem')).toBeVisible();
+  await startTest(page);
   await expect(page.locator('.question-source')).toContainText('Extracted, not yet reviewed');
 });
 
 test('the card sits on cream and the question sits on white', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('.question-box')).toBeVisible();
+  await startTest(page);
 
   const colours = await page.evaluate(() => ({
     body: getComputedStyle(document.body).backgroundColor,
@@ -83,8 +99,8 @@ test('the card sits on cream and the question sits on white', async ({ page }) =
   expect(colours.card).toBe('rgb(255, 255, 255)');
 });
 
-test('a database failure shows an alert and recovers on retry', async ({ page }) => {
-  // A flag, not a call counter: StrictMode runs the effect twice in development.
+test('a failed draw is reported on the setup screen and recovers on retry', async ({ page }) => {
+  // A flag, not a call counter: StrictMode runs effects twice in development.
   let failing = true;
   await page.route('**/api/questions*', async route => {
     if (failing) {
@@ -99,17 +115,18 @@ test('a database failure shows an alert and recovers on retry', async ({ page })
   });
 
   await page.goto('/');
+  await page.getByRole('button', { name: 'Start test' }).click();
   await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
 
   failing = false;
-  await page.getByRole('button', { name: 'Try again' }).click();
+  await page.getByRole('button', { name: 'Start test' }).click();
   await expect(page.locator('.question-stem')).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
 test('the question box fits a mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await startTest(page);
 
   await expect(page.locator('.question-stem')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

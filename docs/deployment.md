@@ -69,7 +69,7 @@ and replace what is live.
 
 After deployment, verify that `/api/questions` returns 401 without a session,
 that the sign-in page loads, and that signing in with an allowlisted Google
-account reaches the question bank.
+account reaches the test setup screen.
 
 ## Local development
 

@@ -15,11 +15,15 @@ const stem = (page: Page) => page.locator('.question-stem');
 const next = (page: Page) => page.getByRole('button', { name: 'Next', exact: true });
 const back = (page: Page) => page.getByRole('button', { name: 'Back', exact: true });
 
-/** Open the practice test section on a page with a frozen, controllable clock. */
+/** Open the setup screen on a page with a frozen, controllable clock.
+ *
+ *  The practice test is the only section and the one the app opens on, so this
+ *  waits for the setup rather than navigating to it. Clicking the nav here used
+ *  to be necessary and now is not: on a narrow screen the section list is behind
+ *  a toggle, so the click had to open the menu first for no gain. */
 async function openSetup(page: Page) {
   await page.clock.install();
   await page.goto('/');
-  await page.getByRole('button', { name: 'Practice test' }).click();
   await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 }
 
@@ -47,7 +51,7 @@ async function answerAll(page: Page, count: number) {
 test('the practice test section offers a curated setup', async ({ page }) => {
   await openSetup(page);
 
-  await expect(page.getByRole('button', { name: 'Practice test' })).toHaveAttribute(
+  await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Practice test' })).toHaveAttribute(
     'aria-current',
     'page',
   );
