@@ -52,13 +52,13 @@ test('signing out ends the session for the API as well as the page', async ({ pa
   expect((await page.request.get('/api/questions')).status()).toBe(200);
 
   await signOut(page);
-  await expect(page.getByRole('heading', { level: 1, name: 'Good Luck Harpreet' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: "You've got this, Harpreet." })).toBeVisible();
 
   expect((await page.request.get('/api/questions')).status()).toBe(401);
   expect((await page.request.get('/api/auth/me')).status()).toBe(401);
 
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Good Luck Harpreet' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: "You've got this, Harpreet." })).toBeVisible();
 });
 
 test('a revoked session cannot be replayed with the original cookie', async ({ page }) => {
@@ -68,7 +68,7 @@ test('a revoked session cannot be replayed with the original cookie', async ({ p
   expect(session).toBeTruthy();
 
   await signOut(page);
-  await expect(page.getByRole('heading', { level: 1, name: 'Good Luck Harpreet' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: "You've got this, Harpreet." })).toBeVisible();
 
   // Put the original cookie back. Its signature is still valid, so only the
   // server-side session record stands between a stolen cookie and the data.

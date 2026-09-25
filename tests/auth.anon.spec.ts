@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('a visitor without a session sees the sign-in page and no questions', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Good Luck Harpreet' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: "You've got this, Harpreet." })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible();
 
   // None of the app is reachable.
@@ -48,7 +48,7 @@ test('a forged or tampered session cookie is refused', async ({ page, request })
 
   // A forged cookie leaves you signed out, so the landing page is what loads.
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Good Luck Harpreet' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: "You've got this, Harpreet." })).toBeVisible();
 });
 
 test('starting sign-in sets a single-use cookie and redirects to Google', async ({ request }) => {
