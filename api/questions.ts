@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { atlasQuestionStore, EARLIEST_YEAR, LATEST_YEAR } from '../server/question-store.js';
+import { atlasQuestionStore, EARLIEST_YEAR, LATEST_YEAR, parseYearsParam } from '../server/question-store.js';
 import { AuthConfigError } from '../server/auth/config.js';
 import { authenticate, resolveAuthDeps } from '../server/auth/routes.js';
 import { describeError } from '../server/log.js';
@@ -40,14 +40,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const url = new URL(req.url || '/', 'http://localhost');
+  const years = parseYearsParam(url.searchParams.get('years'));
   const params = {
     search: (url.searchParams.get('search') || '').slice(0, 200),
     offset: Number(url.searchParams.get('offset') || 0),
     limit: Number(url.searchParams.get('limit') || 1),
     random: url.searchParams.get('random') === 'true',
     minYear: Number(url.searchParams.get('minYear') || 0),
+    years: years ?? [],
   };
   if (
+    years === null ||
     ![params.offset, params.limit, params.minYear].every(Number.isSafeInteger) ||
     params.offset < 0 ||
     params.limit < 1 ||

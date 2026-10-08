@@ -46,9 +46,11 @@ export type TestRecord = {
   expired: boolean;
   questionCount: number;
   answeredCount: number;
-  /** The earliest paper year the sitting drew from, or 0 for every year. Kept so
-   *  a past sitting still says what it was drawn from. */
-  minYear: number;
+  /** The exact paper years the sitting drew from. Empty means every year. */
+  years: number[];
+  /** Legacy single-cutoff year on sittings saved before the multi-year filter.
+   *  Kept only so old records still read. */
+  minYear?: number;
   finishedAt: Date;
   answers: StoredAnswer[];
 };
@@ -61,12 +63,23 @@ export type TestSummary = {
   expired: boolean;
   questionCount: number;
   answeredCount: number;
-  minYear: number;
+  years: number[];
   finishedAt: string;
 };
 
 /** A whole sitting, for the review screen. */
 export type TestDetail = TestSummary & { answers: StoredAnswer[] };
+
+/** Aggregate numbers for the dashboard above the setup form. */
+export type TestStats = {
+  testsTaken: number;
+  questionsAnswered: number;
+  /** Percent of answered questions whose option matched the AI answer, over all
+   *  sittings. Null when nothing answered yet. */
+  scorePercent: number | null;
+  /** Mean sitting length in seconds. Null when no sittings yet. */
+  avgSeconds: number | null;
+};
 
 export const MAX_QUESTIONS = 100;
 export const PAGE_SIZE = 10;

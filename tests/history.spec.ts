@@ -86,12 +86,12 @@ test('opening a past test shows every option with the chosen one marked', async 
   await expect(page.locator('.review-item')).toHaveCount(questionCount);
   const options = page.locator('.review-option');
   expect(await options.count()).toBeGreaterThan(questionCount);
-  await expect(page.locator('.review-option.is-chosen')).toHaveCount(questionCount);
-  await expect(page.locator('.review-option-mark').first()).toContainText('Your answer');
+  await expect(page.locator('.review-option-mark', { hasText: 'Your answer' })).toHaveCount(
+    questionCount,
+  );
 
-  // Unselected options are shown, and nothing claims to be correct.
-  expect(await page.locator('.review-option:not(.is-chosen)').count()).toBeGreaterThan(0);
-  await expect(page.locator('.question-source-line')).toContainText('Nothing above is marked correct');
+  // The AI answer is highlighted but labelled an unverified estimate, not a key.
+  await expect(page.locator('.question-source-line')).toContainText('not a verified answer key');
 
   await page.getByRole('button', { name: 'Back' }).click();
   await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
@@ -133,7 +133,7 @@ test('an unanswered question is kept as unanswered', async ({ page }) => {
   await page.getByRole('button', { name: 'New test' }).click();
   await page.locator('.history-table tbody tr').first().locator('.history-open').click();
 
-  await expect(page.locator('.review-option.is-chosen')).toHaveCount(1);
+  await expect(page.locator('.review-option-mark', { hasText: 'Your answer' })).toHaveCount(1);
   await expect(page.locator('.review-blank')).toHaveCount(4);
 });
 

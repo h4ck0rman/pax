@@ -4,8 +4,9 @@ import type { Question } from '../questions/types';
 export type TestConfig = {
   questionCount: number;
   minutes: number;
-  /** Draw only from papers this year or later. 0 draws from every year. */
-  minYear: number;
+  /** Draw only from these exact paper years. Empty draws from every year,
+   *  including undated study material. */
+  years: number[];
 };
 
 /** One question as the candidate left it. Null means they did not answer. */
@@ -36,10 +37,35 @@ export const DURATIONS = [5, 15, 30, 60] as const;
  *  Roughly one candidate in six comes from study material whose filename names
  *  no year. Those are left out as soon as any year is chosen, because their year
  *  is unknown rather than old. */
-export const YEAR_FILTERS = [
-  { minYear: 0, label: 'Any year', available: 5374 },
-  { minYear: 2016, label: '2016 onwards', available: 3905 },
-  { minYear: 2019, label: '2019 onwards', available: 2776 },
-  { minYear: 2022, label: '2022 onwards', available: 755 },
-  { minYear: 2024, label: '2024 onwards', available: 232 },
+/** The number of servable questions in total, and the share that carries no
+ *  year, so the setup copy can say what "any year" draws from. */
+export const SERVABLE_TOTAL = 5374;
+export const SERVABLE_UNDATED = 894;
+
+/** Every paper year that has servable questions, newest first, with how many
+ *  each has. Shown as toggle bubbles under the Papers control; ticking some
+ *  draws only from those years. Counts come from the extraction in Atlas; rerun
+ *  the per-year count if the bank is rebuilt. A ticked year never includes the
+ *  undated material, whose year is unknown rather than old. */
+export const YEAR_OPTIONS: ReadonlyArray<{ year: number; available: number }> = [
+  { year: 2026, available: 78 },
+  { year: 2024, available: 154 },
+  { year: 2023, available: 42 },
+  { year: 2022, available: 481 },
+  { year: 2021, available: 1024 },
+  { year: 2020, available: 391 },
+  { year: 2019, available: 606 },
+  { year: 2018, available: 445 },
+  { year: 2017, available: 378 },
+  { year: 2016, available: 306 },
+  { year: 2015, available: 74 },
+  { year: 2014, available: 175 },
+  { year: 2013, available: 45 },
+  { year: 2012, available: 89 },
+  { year: 2011, available: 24 },
+  { year: 2010, available: 33 },
+  { year: 2009, available: 99 },
+  { year: 2008, available: 32 },
+  { year: 2007, available: 1 },
+  { year: 2006, available: 3 },
 ] as const;

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { atlasQuestionStore, EARLIEST_YEAR, LATEST_YEAR } from './server/question-store';
+import { atlasQuestionStore, EARLIEST_YEAR, LATEST_YEAR, parseYearsParam } from './server/question-store';
 import { AuthConfigError } from './server/auth/config';
 import {
   authenticate,
@@ -167,14 +167,17 @@ function paxApi(env: Record<string, string>): Plugin {
         return;
       }
 
+      const years = parseYearsParam(request.query.get('years'));
       const params = {
         search: (request.query.get('search') || '').slice(0, 200),
         offset: Number(request.query.get('offset') || 0),
         limit: Number(request.query.get('limit') || 1),
         random: request.query.get('random') === 'true',
         minYear: Number(request.query.get('minYear') || 0),
+        years: years ?? [],
       };
       if (
+        years === null ||
         ![params.offset, params.limit, params.minYear].every(Number.isSafeInteger) ||
         params.offset < 0 ||
         params.limit < 1 ||

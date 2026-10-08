@@ -92,14 +92,14 @@ export default function PracticeTest() {
       const page = await fetchQuestions({
         random: true,
         limit: chosen.questionCount,
-        minYear: chosen.minYear,
+        years: chosen.years,
       });
       // A random draw can repeat a document, so keep the first of each.
       const unique = [...new Map(page.questions.map(item => [item.id, item])).values()];
       if (!unique.length) {
         throw new Error(
-          chosen.minYear
-            ? `No questions are available from papers ${chosen.minYear} onwards.`
+          chosen.years.length
+            ? `No questions are available from the chosen ${chosen.years.length === 1 ? 'year' : 'years'}.`
             : 'No questions are available right now.',
         );
       }

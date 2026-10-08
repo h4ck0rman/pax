@@ -1,7 +1,7 @@
 import type { Db } from 'mongodb';
 import { getDb } from '../mongo.js';
 import type { AuthConfig } from '../auth/config.js';
-import type { StoredAiEstimate, TestDetail, TestRecord, TestSummary } from './types.js';
+import type { StoredAiEstimate, TestDetail, TestRecord, TestStats, TestSummary } from './types.js';
 
 /** Only the fields the table needs, so listing does not drag every question
  *  body back from Atlas. */
@@ -12,7 +12,7 @@ const SUMMARY_FIELDS = {
   expired: 1,
   questionCount: 1,
   answeredCount: 1,
-  minYear: 1,
+  years: 1,
   finishedAt: 1,
 } as const;
 
@@ -23,8 +23,8 @@ const toSummary = (record: Omit<TestRecord, 'answers' | 'userId'>): TestSummary 
   expired: record.expired,
   questionCount: record.questionCount,
   answeredCount: record.answeredCount,
-  // Sittings kept before the year filter existed carry no minYear.
-  minYear: record.minYear ?? 0,
+  // Sittings kept before the multi-year filter carry no years.
+  years: record.years ?? [],
   finishedAt: record.finishedAt.toISOString(),
 });
 
@@ -35,6 +35,8 @@ export type HistoryStore = {
   list(userId: string, limit: number, offset: number): Promise<{ total: number; tests: TestSummary[] }>;
   /** Scoped to the owner, so an id from somewhere else returns nothing. */
   detail(userId: string, id: string): Promise<TestDetail | null>;
+  /** Aggregate numbers across all the owner's sittings, for the dashboard. */
+  stats(userId: string): Promise<TestStats>;
 };
 
 export function mongoHistoryStore(config: AuthConfig): HistoryStore {
@@ -89,6 +91,62 @@ export function mongoHistoryStore(config: AuthConfig): HistoryStore {
         ai_estimate: estimates.get(answer.questionId) ?? null,
       }));
       return { ...toSummary(record), answers };
+    },
+
+    async stats(userId) {
+      const db = await getDb(config.mongoUri, config.mongoDatabase);
+      const rows = await db
+        .collection<TestRecord>('tests')
+        .find(
+          { userId },
+          { projection: { usedSeconds: 1, answers: 1 }, maxTimeMS: 10000 },
+        )
+        .toArray();
+
+      const testsTaken = rows.length;
+      if (!testsTaken) {
+        return { testsTaken: 0, questionsAnswered: 0, scorePercent: null, avgSeconds: null };
+      }
+
+      let questionsAnswered = 0;
+      let totalSeconds = 0;
+      const answeredIds = new Set<string>();
+      for (const row of rows) {
+        totalSeconds += row.usedSeconds || 0;
+        for (const answer of row.answers || []) {
+          if (answer.selected != null) {
+            questionsAnswered++;
+            answeredIds.add(answer.questionId);
+          }
+        }
+      }
+
+      // The AI pick per answered question, to score agreement the same way the
+      // review screen does: the chosen label equals the model's choice label.
+      const picks = new Map<string, string | null>();
+      const ids = [...answeredIds];
+      for (let i = 0; i < ids.length; i += 500) {
+        const batch = ids.slice(i, i + 500);
+        const found = await db
+          .collection<{ _id: string; ai_estimate?: StoredAiEstimate }>('questions')
+          .find({ _id: { $in: batch } }, { projection: { _id: 1, 'ai_estimate.choice_label': 1 }, maxTimeMS: 10000 })
+          .toArray();
+        for (const row of found) picks.set(String(row._id), row.ai_estimate?.choice_label ?? null);
+      }
+
+      let matched = 0;
+      for (const row of rows) {
+        for (const answer of row.answers || []) {
+          if (answer.selected != null && picks.get(answer.questionId) === answer.selected) matched++;
+        }
+      }
+
+      return {
+        testsTaken,
+        questionsAnswered,
+        scorePercent: questionsAnswered ? Math.round((100 * matched) / questionsAnswered) : null,
+        avgSeconds: Math.round(totalSeconds / testsTaken),
+      };
     },
   };
 }

@@ -10,6 +10,9 @@ export type QuestionQuery = {
   random?: boolean;
   /** Serve only papers from this year onwards. Omitted or 0 means every year. */
   minYear?: number;
+  /** Serve only papers from these exact years. Omitted or empty means every
+   *  year. Takes precedence over minYear. */
+  years?: number[];
 };
 
 const UNAVAILABLE = 'The question database is unavailable.';
@@ -24,6 +27,7 @@ export async function fetchQuestions(
   if (query.search) params.set('search', query.search);
   if (query.random) params.set('random', 'true');
   if (query.minYear) params.set('minYear', String(query.minYear));
+  if (query.years && query.years.length) params.set('years', query.years.join(','));
 
   const response = await fetch(`/api/questions?${params}`, { signal });
   const body: unknown = await response.json().catch(() => null);

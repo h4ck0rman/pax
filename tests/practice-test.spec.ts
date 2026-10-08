@@ -254,18 +254,16 @@ test('new test returns to the setup screen', async ({ page }) => {
   await expect(bar(page)).toHaveCount(0);
 });
 
-test('the sitting never claims an answer is correct or gives a score', async ({ page }) => {
+test('the review marks the AI answer but labels it unverified, not a key', async ({ page }) => {
   await openSetup(page);
   await startTest(page, '5', '15');
   await answerAll(page, 5);
 
   await expect(page.locator('.setup-lead')).toContainText('does not mark the paper');
   await expect(page.locator('.setup-lead')).toContainText('no verified answer keys');
-  await expect(page.locator('.question-source-line')).toContainText(
-    'Nothing above is marked correct',
-  );
-  // No question carries a correctness marker of any kind.
-  await expect(page.locator('[class*="correct"], [data-correct], [aria-invalid]')).toHaveCount(0);
+  // The AI pick is highlighted, but the copy is explicit that it is not verified.
+  await expect(page.locator('.question-source-line')).toContainText('not a verified answer key');
+  await expect(page.locator('.review-summary-note')).toContainText('not a verified key');
   await expect(page.locator('.review-item')).toHaveCount(5);
 });
 

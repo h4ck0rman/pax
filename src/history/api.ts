@@ -8,8 +8,9 @@ export type TestSummary = {
   expired: boolean;
   questionCount: number;
   answeredCount: number;
-  /** The earliest paper year the sitting drew from. 0 means every year. */
-  minYear: number;
+  /** The exact paper years the sitting drew from. Empty means every year.
+   *  Sittings saved before the multi-year filter carry none. */
+  years: number[];
   finishedAt: string;
 };
 
@@ -24,6 +25,14 @@ export type StoredAnswer = {
 };
 
 export type TestDetail = TestSummary & { answers: StoredAnswer[] };
+
+/** Aggregate numbers for the dashboard above the setup form. */
+export type TestStats = {
+  testsTaken: number;
+  questionsAnswered: number;
+  scorePercent: number | null;
+  avgSeconds: number | null;
+};
 
 export const PAGE_SIZE = 10;
 
@@ -45,7 +54,7 @@ export async function saveTest(test: CompletedTest, id: string): Promise<void> {
     body: JSON.stringify({
       id,
       minutes: test.config.minutes,
-      minYear: test.config.minYear,
+      years: test.config.years,
       usedSeconds: test.usedSeconds,
       expired: test.expired,
       answers: test.answers.map(answer => ({
@@ -95,6 +104,20 @@ export async function fetchTest(id: string, signal?: AbortSignal): Promise<TestD
   return test as TestDetail;
 }
 
+export async function fetchStats(signal?: AbortSignal): Promise<TestStats> {
+  const response = await fetch('/api/tests?stats=1', { signal, credentials: 'same-origin' });
+  if (!response.ok) await readError(response);
+  const body: unknown = await response.json();
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    typeof (body as TestStats).testsTaken !== 'number'
+  ) {
+    throw new Error(UNAVAILABLE);
+  }
+  return body as TestStats;
+}
+
 /** Reshapes a stored sitting into the value the review screen and the exporter
  *  already understand, so history and a just-finished paper share one path. */
 export function toCompletedTest(detail: TestDetail): CompletedTest {
@@ -102,8 +125,8 @@ export function toCompletedTest(detail: TestDetail): CompletedTest {
     config: {
       questionCount: detail.questionCount,
       minutes: detail.minutes,
-      // Sittings kept before the year filter existed carry no minYear.
-      minYear: detail.minYear ?? 0,
+      // Sittings kept before the multi-year filter carry no years.
+      years: detail.years ?? [],
     },
     usedSeconds: detail.usedSeconds,
     expired: detail.expired,

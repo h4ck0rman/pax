@@ -14,14 +14,19 @@ search = str(params.get('search', ''))[:200]
 limit = max(1, min(100, int(params.get('limit', 1))))
 offset = max(0, int(params.get('offset', 0)))
 min_year = params.get('minYear')
+years = [int(y) for y in (params.get('years') or [])]
 where = "structural_status = 'structurally_clean'"
 args = []
 if search:
     where += ' AND instr(lower(stem), lower(?)) > 0'
     args.append(search)
-if min_year:
-    # A question whose source names no year is excluded rather than assumed to
-    # be recent: the year is unknown, not zero.
+# Specific years win over a minimum year. Either way a question whose source
+# names no year is excluded rather than assumed recent: the year is unknown.
+if years:
+    placeholders = ','.join('?' * len(years))
+    where += f' AND paper_year IN ({placeholders})'
+    args.extend(years)
+elif min_year:
     where += ' AND paper_year IS NOT NULL AND paper_year >= ?'
     args.append(max(1980, min(2049, int(min_year))))
 total = db.execute(f'SELECT count(*) FROM questions WHERE {where}', args).fetchone()[0]

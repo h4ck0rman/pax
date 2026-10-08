@@ -8,6 +8,9 @@ export type QuestionQuery = {
   random: boolean;
   /** Serve only papers from this year onwards. 0 means every year. */
   minYear: number;
+  /** Serve only papers from these exact years. Empty means no year filter.
+   *  Takes precedence over minYear when non-empty. */
+  years: number[];
 };
 
 /** The oldest and newest paper year a request may ask for. The bank holds
@@ -18,7 +21,7 @@ export const LATEST_YEAR = 2049;
 
 /** Builds the query every read path shares, so the four transports cannot
  *  drift apart on which questions are servable. */
-export function questionFilter(params: Pick<QuestionQuery, 'search' | 'minYear'>) {
+export function questionFilter(params: Pick<QuestionQuery, 'search' | 'minYear' | 'years'>) {
   const filter: Record<string, unknown> = { structural_status: 'structurally_clean' };
   if (params.search) {
     filter.stem = {
@@ -26,14 +29,30 @@ export function questionFilter(params: Pick<QuestionQuery, 'search' | 'minYear'>
       $options: 'i',
     };
   }
-  if (params.minYear) {
-    // A question whose source names no year is left out rather than assumed to
-    // be recent. The year is unknown, not zero.
+  // Specific years win over a minimum year. Either way a question whose source
+  // names no year is left out rather than assumed recent: the year is unknown.
+  if (params.years && params.years.length) {
+    filter.paper_year = { $in: params.years };
+  } else if (params.minYear) {
     filter.paper_year = {
       $gte: Math.max(EARLIEST_YEAR, Math.min(LATEST_YEAR, params.minYear)),
     };
   }
   return filter;
+}
+
+/** Parses a `years` query parameter ("2019,2021,2024") into whole years within
+ *  range. Returns [] when absent, or null when any entry is invalid, so every
+ *  transport rejects a bad request the same way. */
+export function parseYearsParam(raw: string | null | undefined): number[] | null {
+  if (!raw) return [];
+  const years: number[] = [];
+  for (const part of raw.split(',')) {
+    const year = Number(part);
+    if (!Number.isSafeInteger(year) || year < EARLIEST_YEAR || year > LATEST_YEAR) return null;
+    if (!years.includes(year)) years.push(year);
+  }
+  return years;
 }
 
 /** Server-only reader for the question bank. Never imported into the browser

@@ -93,6 +93,45 @@
   max-width: 36rem;
 }
 
+/* ---- Dashboard: a bare row of aggregate numbers above the setup ---- */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.dashboard-tile {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--wash);
+}
+
+.dashboard-value {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.dashboard-label {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.dashboard-note {
+  color: var(--ink-faint);
+}
+
+@media (max-width: 640px) {
+  .dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .setup-form {
   margin-top: var(--space-6);
 }
@@ -119,11 +158,98 @@
   font-weight: 400;
 }
 
+/* A custom dropdown chevron, inset from the right edge rather than jammed
+   against it. A unicode glyph rather than an image, so the strict CSP is happy. */
+.select-wrap {
+  position: relative;
+  display: block;
+}
+
+.setup-field select,
+.setup-select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--space-6);
+}
+
+.select-wrap::after {
+  content: "\25BE";
+  position: absolute;
+  top: 50%;
+  right: var(--space-4);
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
 /* The paper range is a sentence rather than a number, so it needs the room the
    two numeric fields do not. It still sits on one line beside them on a wide
    screen and wraps under them on a narrow one. */
 .setup-field-wide {
   flex: 2 1 14rem;
+}
+
+/* ---- Papers: a year picker that adds removable tags ---- */
+.setup-papers {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.setup-papers-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.setup-select {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-weight: 400;
+}
+
+.year-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.year-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.year-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--on-ink);
+  cursor: pointer;
+}
+
+.year-tag-remove:hover {
+  background: rgb(255 255 255 / 18%);
 }
 
 .setup-pace {

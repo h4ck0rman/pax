@@ -24,6 +24,7 @@ const LIMITS = {
   originalNumber: 50,
   start: 200,
   options: 12,
+  years: 40,
 };
 
 class Invalid extends Error {}
@@ -54,6 +55,21 @@ function record(value: unknown, field: string): Record<string, unknown> {
     throw new Invalid(`${field} must be an object`);
   }
   return value as Record<string, unknown>;
+}
+
+/** The exact paper years a sitting drew from. Absent, null or empty means every
+ *  year. Each must be a whole year a paper could carry. */
+function yearList(value: unknown, field: string): number[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > LIMITS.years) {
+    throw new Invalid(`${field} is the wrong length`);
+  }
+  const years: number[] = [];
+  for (const entry of value) {
+    const year = wholeNumber(entry, 1980, 2049, `${field} entry`);
+    if (!years.includes(year)) years.push(year);
+  }
+  return years;
 }
 
 function readAnswer(value: unknown, position: number): StoredAnswer {
@@ -121,11 +137,8 @@ export function readTest(body: unknown, userId: string): TestRecord {
     minutes: wholeNumber(raw.minutes, 1, 600, 'minutes'),
     usedSeconds: wholeNumber(raw.usedSeconds, 0, 86_400, 'usedSeconds'),
     expired: raw.expired === true,
-    // 0 means the sitting drew from every year. Any other value must be a year a
-    // paper could carry, not an arbitrary number.
-    minYear: raw.minYear === undefined || raw.minYear === null || raw.minYear === 0
-      ? 0
-      : wholeNumber(raw.minYear, 1980, 2049, 'minYear'),
+    // The exact years the sitting drew from. Empty means every year.
+    years: yearList(raw.years, 'years'),
     questionCount: answers.length,
     answeredCount: answers.filter(answer => answer.selected).length,
     finishedAt: new Date(),
@@ -156,6 +169,11 @@ export async function handleHistoryRequest(
 
   if (request.method !== 'GET') {
     return json(405, { error: 'GET or POST only' });
+  }
+
+  // Aggregate numbers for the dashboard, scoped to the signed-in user.
+  if (request.query.get('stats') !== null) {
+    return json(200, await store.stats(userId));
   }
 
   const id = request.query.get('id');

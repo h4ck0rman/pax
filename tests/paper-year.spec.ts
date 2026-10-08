@@ -1,13 +1,15 @@
 import { test, expect, type Page } from '@playwright/test';
 
-/** The paper year filter: a sitting can be narrowed to recent papers only.
+/** The paper year filter: a sitting can be narrowed to chosen paper years.
  *
  *  The year is derived from the source path of the document a question was found
  *  in, so it is a property of the paper rather than of the question text. Roughly
  *  one candidate in six sits in study material naming no year, and those are left
- *  out as soon as a year is chosen. */
+ *  out as soon as any year is chosen. Years are added from a dropdown and shown
+ *  as removable tags. */
 
-const papers = (page: Page) => page.locator('.setup-field', { hasText: 'Papers' }).locator('select');
+const addYear = (page: Page, year: number) =>
+  page.locator('.setup-papers select').selectOption(String(year));
 
 type Drawn = { id: string; paper_year?: number | null };
 
@@ -26,18 +28,23 @@ function collectDraws(page: Page) {
   return async () => (await Promise.all(pending)).flat();
 }
 
-test('the setup offers a paper range and says how large the pool is', async ({ page }) => {
+test('the setup adds years as tags and says how large the pool is', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Build your test.' })).toBeVisible();
 
-  await expect(papers(page)).toHaveValue('0');
   await expect(page.locator('.setup-pace')).toContainText('including study material with no year');
 
-  await papers(page).selectOption('2022');
-  await expect(page.locator('.setup-pace')).toContainText('papers from 2022 onwards');
+  await addYear(page, 2022);
+  await expect(page.locator('.year-tag', { hasText: '2022' })).toBeVisible();
+  await expect(page.locator('.setup-pace')).toContainText('across 1 year');
+
+  // The tag's remove control takes the year back off.
+  await page.locator('.year-tag', { hasText: '2022' }).getByRole('button').click();
+  await expect(page.locator('.year-tag')).toHaveCount(0);
+  await expect(page.locator('.setup-pace')).toContainText('including study material with no year');
 });
 
-test('choosing a year narrows the draw to papers from that year onwards', async ({ page }) => {
+test('choosing years narrows the draw to those exact years', async ({ page }) => {
   const draws = collectDraws(page);
   const queries: string[] = [];
   page.on('request', sent => {
@@ -46,17 +53,16 @@ test('choosing a year narrows the draw to papers from that year onwards', async 
   });
 
   await page.goto('/');
-  await papers(page).selectOption('2022');
+  await addYear(page, 2022);
   await page.locator('.setup-field', { hasText: 'Questions' }).locator('select').selectOption('20');
   await page.getByRole('button', { name: 'Start test' }).click();
   await expect(page.locator('.question-stem')).toBeVisible();
 
-  expect(queries.some(query => query.includes('minYear=2022'))).toBeTruthy();
+  expect(queries.some(query => query.includes('years=2022'))).toBeTruthy();
   const drawn = await draws();
   expect(drawn.length).toBeGreaterThan(0);
   for (const question of drawn) {
-    expect(question.paper_year, `question ${question.id} has no year`).toBeTruthy();
-    expect(question.paper_year!).toBeGreaterThanOrEqual(2022);
+    expect(question.paper_year, `question ${question.id} has no year`).toBe(2022);
   }
 });
 
@@ -77,19 +83,27 @@ test('any year draws from the whole bank, undated material included', async ({ p
 });
 
 test('the questions endpoint filters by year and refuses a nonsense one', async ({ request }) => {
-  const filtered = await request.get('/api/questions?limit=25&random=true&minYear=2022');
+  const filtered = await request.get('/api/questions?limit=25&random=true&years=2022');
   expect(filtered.ok()).toBeTruthy();
   const body = await filtered.json();
   expect(body.total).toBeGreaterThan(0);
   expect(body.questions.length).toBeGreaterThan(0);
   for (const question of body.questions) {
-    expect(question.paper_year).toBeGreaterThanOrEqual(2022);
+    expect(question.paper_year).toBe(2022);
   }
 
   const everything = await (await request.get('/api/questions?limit=1')).json();
   expect(body.total).toBeLessThan(everything.total);
 
-  for (const bad of ['minYear=1200', 'minYear=9999', 'minYear=abc', 'minYear=2022.5']) {
+  for (const bad of [
+    'years=1200',
+    'years=9999',
+    'years=abc',
+    'years=2022.5',
+    'years=2020,abc',
+    'minYear=1200',
+    'minYear=abc',
+  ]) {
     const refused = await request.get(`/api/questions?limit=1&${bad}`);
     expect(refused.status(), bad).toBe(400);
   }
@@ -97,7 +111,7 @@ test('the questions endpoint filters by year and refuses a nonsense one', async 
 
 test('a sitting remembers which papers it drew from', async ({ page }) => {
   await page.goto('/');
-  await papers(page).selectOption('2022');
+  await addYear(page, 2022);
   await page.locator('.setup-field', { hasText: 'Questions' }).locator('select').selectOption('5');
   await page.getByRole('button', { name: 'Start test' }).click();
   await expect(page.locator('.question-stem')).toBeVisible();
@@ -113,5 +127,5 @@ test('a sitting remembers which papers it drew from', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Test complete.' })).toBeVisible();
 
   const request = (await saved).request();
-  expect(JSON.parse(request.postData() ?? '{}').minYear).toBe(2022);
+  expect(JSON.parse(request.postData() ?? '{}').years).toEqual([2022]);
 });
