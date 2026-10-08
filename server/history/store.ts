@@ -1,7 +1,7 @@
 import type { Db } from 'mongodb';
 import { getDb } from '../mongo.js';
 import type { AuthConfig } from '../auth/config.js';
-import type { TestDetail, TestRecord, TestSummary } from './types.js';
+import type { StoredAiEstimate, TestDetail, TestRecord, TestSummary } from './types.js';
 
 /** Only the fields the table needs, so listing does not drag every question
  *  body back from Atlas. */
@@ -64,10 +64,31 @@ export function mongoHistoryStore(config: AuthConfig): HistoryStore {
     },
 
     async detail(userId, id) {
-      const tests = await collection();
-      const record = await tests.findOne({ _id: id, userId }, { maxTimeMS: 10000 });
+      const db = await getDb(config.mongoUri, config.mongoDatabase);
+      const record = await db
+        .collection<TestRecord>('tests')
+        .findOne({ _id: id, userId }, { maxTimeMS: 10000 });
       if (!record) return null;
-      return { ...toSummary(record), answers: record.answers };
+
+      // Join each question's current AI suggestion from the bank. This is done at
+      // read time rather than stored on the sitting, so sittings saved before the
+      // estimates existed still show them, and the stored record never changes.
+      const ids = [...new Set(record.answers.map(answer => answer.questionId))];
+      const estimates = new Map<string, StoredAiEstimate>();
+      if (ids.length) {
+        const rows = await db
+          .collection<{ _id: string; ai_estimate?: StoredAiEstimate }>('questions')
+          .find({ _id: { $in: ids } }, { projection: { _id: 1, ai_estimate: 1 }, maxTimeMS: 10000 })
+          .toArray();
+        for (const row of rows) {
+          if (row.ai_estimate) estimates.set(String(row._id), row.ai_estimate);
+        }
+      }
+      const answers = record.answers.map(answer => ({
+        ...answer,
+        ai_estimate: estimates.get(answer.questionId) ?? null,
+      }));
+      return { ...toSummary(record), answers };
     },
   };
 }

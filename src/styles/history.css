@@ -250,6 +250,24 @@
   font-weight: 700;
 }
 
+/* The correct answer (the AI model's pick): a soft green tint, green ink. */
+.review-option.is-correct {
+  border-color: var(--ink);
+  background: var(--correct-wash);
+  color: var(--ink);
+}
+
+/* A wrong selection: a soft red tint, red ink (see --wrong in tokens.css). */
+.review-option.is-wrong {
+  border-color: var(--wrong);
+  background: var(--wrong-wash);
+  color: var(--wrong);
+}
+
+.review-option.is-wrong .review-option-mark {
+  color: var(--wrong);
+}
+
 .review-option-letter {
   flex-shrink: 0;
   width: 1.2em;
@@ -271,11 +289,67 @@
   white-space: nowrap;
 }
 
+/* The confidence reads as plain green text on the tinted correct row, no pill,
+   so it stays subtle and legible. */
+.review-option-confidence {
+  color: var(--ink);
+}
+
 .review-blank {
   margin-top: var(--space-3);
   margin-left: calc(var(--space-3) + 1.2em);
   font-size: var(--text-xs);
   color: var(--ink-faint);
+}
+
+/* ---- Completion summary and celebration ---- */
+.review-summary {
+  margin-top: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--wash);
+}
+
+.review-summary.is-celebrating {
+  border-color: var(--ink);
+}
+
+.review-summary-score {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin: 0;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.review-summary-score strong {
+  font-size: 64px;
+  font-weight: 800;
+}
+
+.review-summary-total {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+.review-summary-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+/* Full-viewport canvas for the confetti burst. Never intercepts clicks. */
+.confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
 }
 
 @media (max-width: 750px) {

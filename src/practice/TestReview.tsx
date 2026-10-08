@@ -1,8 +1,14 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Check, ClipboardCopy, Download } from 'lucide-react';
+import { Check, ClipboardCopy, Download, X } from 'lucide-react';
 import { toParagraphs, toSingleLine } from '../questions/text';
 import { buildFileName, buildGradingDocument, formatDuration } from './export';
 import type { CompletedTest } from './types';
+import Confetti from './Confetti';
+
+/** Fire the celebration when the candidate lined up with the AI suggestion on at
+ *  least this share of the whole test. This is agreement with an unverified
+ *  model, never a verified score. */
+const CELEBRATE_RATE = 0.9;
 
 type Props = {
   test: CompletedTest;
@@ -24,6 +30,20 @@ export default function TestReview({ test, title, meta, lead, trailing }: Props)
   const manualRef = useRef<HTMLTextAreaElement>(null);
 
   const answered = test.answers.filter(answer => answer.selected).length;
+  const hasEstimates = test.answers.some(answer => answer.question.ai_estimate?.choice_label != null);
+
+  // How many of the whole test matched the AI suggestion, shown as a simple
+  // out-of-total score. Not a verified score: there is no answer key, so an
+  // unanswered question or one the model never saw simply does not count as a
+  // match.
+  const total = test.answers.length;
+  const matched = test.answers.filter(
+    answer =>
+      answer.selected != null && answer.selected === answer.question.ai_estimate?.choice_label,
+  ).length;
+  const matchRate = total ? matched / total : 0;
+  const celebrate = total > 0 && matchRate >= CELEBRATE_RATE;
+
   const document_ = buildGradingDocument(test);
 
   const copyForLlm = useCallback(async () => {
@@ -53,6 +73,7 @@ export default function TestReview({ test, title, meta, lead, trailing }: Props)
 
   return (
     <section className="question-box">
+      {celebrate && <Confetti />}
       <header className="question-meta">
         <span className="eyebrow">Practice test</span>
         <span className="question-count">
@@ -74,6 +95,20 @@ export default function TestReview({ test, title, meta, lead, trailing }: Props)
           </>
         )}
       </p>
+
+      {hasEstimates && (
+        <div className={celebrate ? 'review-summary is-celebrating' : 'review-summary'}>
+          <p className="review-summary-score">
+            <strong>{matched}</strong>
+            <span className="review-summary-total">/{total}</span>
+          </p>
+          <p className="review-summary-note">
+            {celebrate ? 'Brilliant. ' : ''}
+            right. Correct answers are green, wrong picks red. These are an AI model's answers with
+            its own confidence, not a verified key, so double-check anything that matters.
+          </p>
+        </div>
+      )}
 
       <div className="review-actions">
         <button type="button" className="button" onClick={copyForLlm}>
@@ -115,50 +150,67 @@ export default function TestReview({ test, title, meta, lead, trailing }: Props)
       )}
 
       <ol className="review-list">
-        {test.answers.map((answer, position) => (
-          <li key={`${answer.question.id}-${position}`} className="review-item">
-            <p className="review-stem">
-              <span className="review-number">{position + 1}</span>
-              <span>
-                {toParagraphs(answer.question.stem).map((paragraph, block) => (
-                  <span className="review-stem-block" key={block}>
-                    {paragraph}{' '}
-                  </span>
-                ))}
-              </span>
-            </p>
+        {test.answers.map((answer, position) => {
+          const estimate = answer.question.ai_estimate;
+          const aiLabel = estimate?.choice_label ?? null;
+          const aiPercent =
+            typeof estimate?.confidence === 'number' ? Math.round(estimate.confidence * 100) : null;
+          return (
+            <li key={`${answer.question.id}-${position}`} className="review-item">
+              <p className="review-stem">
+                <span className="review-number">{position + 1}</span>
+                <span>
+                  {toParagraphs(answer.question.stem).map((paragraph, block) => (
+                    <span className="review-stem-block" key={block}>
+                      {paragraph}{' '}
+                    </span>
+                  ))}
+                </span>
+              </p>
 
-            {/* Every option, with the chosen one marked. Nothing here says which
-                option is correct, because that is not known. */}
-            <ul className="review-options">
-              {answer.question.options.map(option => {
-                const chosen = option.label === answer.selected;
-                return (
-                  <li
-                    key={option.label}
-                    className={chosen ? 'review-option is-chosen' : 'review-option'}
-                  >
-                    <span className="review-option-letter">{option.label}</span>
-                    <span className="review-option-text">{toSingleLine(option.text)}</span>
-                    {chosen && (
-                      <span className="review-option-mark">
-                        <Check size={14} aria-hidden="true" /> Your answer
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+              {/* The AI model's pick is marked correct (green); a chosen option
+                  that is not the pick is marked wrong (red). Only graded where
+                  the model has an answer. These picks are unverified, not a key. */}
+              <ul className="review-options">
+                {answer.question.options.map(option => {
+                  const chosen = option.label === answer.selected;
+                  const correct = aiLabel !== null && option.label === aiLabel;
+                  const wrong = chosen && aiLabel !== null && !correct;
+                  const classes = ['review-option'];
+                  if (correct) classes.push('is-correct');
+                  else if (wrong) classes.push('is-wrong');
+                  else if (chosen) classes.push('is-chosen');
+                  return (
+                    <li key={option.label} className={classes.join(' ')}>
+                      <span className="review-option-letter">{option.label}</span>
+                      <span className="review-option-text">{toSingleLine(option.text)}</span>
+                      {chosen && (
+                        <span className="review-option-mark">
+                          {wrong ? <X size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />} Your
+                          answer
+                        </span>
+                      )}
+                      {correct && aiPercent !== null && (
+                        <span className="review-option-mark review-option-confidence">
+                          <Check size={14} aria-hidden="true" /> confidence: {aiPercent}%
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
 
-            {!answer.selected && <p className="review-blank">Not answered</p>}
-          </li>
-        ))}
+              {!answer.selected && <p className="review-blank">Not answered</p>}
+            </li>
+          );
+        })}
       </ol>
 
       <footer className="question-source">
         <span className="question-source-line">
-          Nothing above is marked correct. Every question is an unreviewed extraction from a past
-          paper, so check the grading you get back against a trusted source.
+          {hasEstimates
+            ? 'Correct answers are an AI model’s unverified picks with its confidence, not a verified answer key, and are absent where the model was not run. Every question is an unreviewed extraction from a past paper, so check against a trusted source.'
+            : 'Nothing above is marked correct. Every question is an unreviewed extraction from a past paper, so check the grading you get back against a trusted source.'}
         </span>
       </footer>
     </section>

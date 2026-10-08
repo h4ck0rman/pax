@@ -1,4 +1,5 @@
 import type { CompletedTest } from '../practice/types';
+import type { AiEstimate } from '../questions/types';
 
 export type TestSummary = {
   id: string;
@@ -18,6 +19,8 @@ export type StoredAnswer = {
   options: { label: string; text: string }[];
   source: { source: string; original_number: string; start: string } | null;
   selected: string | null;
+  /** Joined in from the live bank when the sitting is read, may be absent. */
+  ai_estimate?: AiEstimate | null;
 };
 
 export type TestDetail = TestSummary & { answers: StoredAnswer[] };
@@ -111,6 +114,7 @@ export function toCompletedTest(detail: TestDetail): CompletedTest {
         stem: answer.stem,
         options: answer.options,
         source: answer.source,
+        ai_estimate: answer.ai_estimate ?? null,
       },
       selected: answer.selected,
     })),

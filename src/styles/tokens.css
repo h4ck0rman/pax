@@ -17,6 +17,14 @@
   --line-strong: rgb(33 69 57 / 26%);
   --wash: rgb(33 69 57 / 5%);
 
+  /* A grading red for a wrong answer on the practice review. Deliberately
+     outside the three-colour palette: right/wrong marking needs it, and it is
+     used only there. Muted so it sits with the cream and green. The wash is a
+     soft tint for the row background; the green wash pairs with it for correct. */
+  --wrong: #a23a2e;
+  --wrong-wash: rgb(162 58 46 / 10%);
+  --correct-wash: rgb(33 69 57 / 10%);
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;

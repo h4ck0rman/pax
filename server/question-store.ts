@@ -45,7 +45,10 @@ export function atlasQuestionStore(uri: string, database: string) {
       const collection = client.db(database).collection('questions');
 
       const filter = questionFilter(params);
-      const projection = { _id: 1, stem: 1, options: 1, source: 1, paper_year: 1 };
+      // ai_estimate is an unverified model guess (Jev), not a verified answer
+      // key, and is absent on questions the model was never run against. The
+      // review screen labels it as such; it is never treated as "correct".
+      const projection = { _id: 1, stem: 1, options: 1, source: 1, paper_year: 1, ai_estimate: 1 };
       const limit = Math.max(1, Math.min(100, params.limit));
 
       const rows = params.random

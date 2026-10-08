@@ -14,6 +14,18 @@ export type StoredSource = {
   start: string;
 } | null;
 
+/** An unverified AI suggestion for a question, joined in from the bank when a
+ *  sitting is read. Never stored on the sitting itself, so it stays current. */
+export type StoredAiEstimate = {
+  model?: string;
+  choice_label: string | null;
+  choice_text?: string;
+  matched?: boolean;
+  confidence: number | null;
+  probabilities?: Record<string, number> | null;
+  evaluated_at?: string | null;
+};
+
 export type StoredAnswer = {
   questionId: string;
   stem: string;
@@ -21,6 +33,8 @@ export type StoredAnswer = {
   source: StoredSource;
   /** The option label the reader chose, or null if they left it. */
   selected: string | null;
+  /** Filled in at read time from the live bank, not persisted with the sitting. */
+  ai_estimate?: StoredAiEstimate | null;
 };
 
 export type TestRecord = {
