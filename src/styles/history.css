@@ -26,6 +26,25 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Holds the one loading overlay (styled in practice.css) over the rows. */
+.history-table-wrap {
+  position: relative;
+}
+
+/* Placeholder bars that give skeleton rows the height of real ones. */
+.skeleton-bar {
+  display: inline-block;
+  width: 60%;
+  min-width: 2.5rem;
+  height: 0.85em;
+  border-radius: var(--radius-sm);
+  background: var(--wash);
+}
+
+.history-skeleton .history-chevron {
+  color: var(--ink-faint);
+}
+
 .history-note {
   margin-top: var(--space-4);
   font-size: var(--text-xs);

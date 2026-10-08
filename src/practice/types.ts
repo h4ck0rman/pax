@@ -23,8 +23,8 @@ export type CompletedTest = {
   expired: boolean;
 };
 
-export const QUESTION_COUNTS = [5, 10, 20, 50] as const;
-export const DURATIONS = [5, 15, 30, 60] as const;
+export const QUESTION_COUNTS = [5, 10, 20, 50, 100] as const;
+export const DURATIONS = [5, 15, 30, 60, 120] as const;
 
 /** How far back a sitting may draw from.
  *

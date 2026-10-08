@@ -15,13 +15,18 @@ const openPracticeTest = async (page: Page) => {
 async function historyRows(page: Page) {
   const rows = page.locator('.history-table tbody tr');
   await expect(page.locator('.history-table, .history-note')).not.toHaveCount(0);
+  // The table renders skeleton rows under a loading overlay first; wait for the
+  // overlay to clear so the rows counted are the real ones.
   await page.waitForFunction(
-    () => !document.querySelector('.history-note[role="status"]'),
+    () => !document.querySelector('.history-overlay'),
     undefined,
     { timeout: 10_000 },
   );
   return { rows, count: await rows.count() };
 }
+
+/** Waits for the loaded rows (skeleton rows carry no open button). */
+const whenLoaded = (page: Page) => page.locator('.history-open').first().waitFor();
 
 /** Sits a whole paper, answering every question, and finishes it. */
 async function sitTest(page: Page, questions: string) {
@@ -77,6 +82,7 @@ test('opening a past test shows every option with the chosen one marked', async 
   await openPracticeTest(page);
   await sitTest(page, '5');
   await page.getByRole('button', { name: 'New test' }).click();
+  await whenLoaded(page);
 
   const newest = page.locator('.history-table tbody tr').first();
   const questionCount = Number((await newest.locator('.history-number').first().textContent()) ?? '0');
@@ -101,7 +107,8 @@ test('a past test can be copied and exported like a fresh one', async ({ page })
   await openPracticeTest(page);
   await sitTest(page, '5');
   await page.getByRole('button', { name: 'New test' }).click();
-  await page.locator('.history-table tbody tr').first().locator('.history-open').click();
+  await whenLoaded(page);
+  await page.locator('.history-open').first().click();
   await expect(page.locator('.review-item').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Copy for LLM' }).click();
@@ -131,7 +138,8 @@ test('an unanswered question is kept as unanswered', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Test complete.' })).toBeVisible();
 
   await page.getByRole('button', { name: 'New test' }).click();
-  await page.locator('.history-table tbody tr').first().locator('.history-open').click();
+  await whenLoaded(page);
+  await page.locator('.history-open').first().click();
 
   await expect(page.locator('.review-option-mark', { hasText: 'Your answer' })).toHaveCount(1);
   await expect(page.locator('.review-blank')).toHaveCount(4);

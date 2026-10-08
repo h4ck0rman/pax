@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, ChevronRight, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronRight, Loader2, RotateCcw } from 'lucide-react';
 import { formatDuration } from '../practice/export';
 import { PAGE_SIZE, fetchTests, type TestSummary } from './api';
 
@@ -40,17 +40,6 @@ export default function PastTestsTable({ onOpen }: { onOpen: (id: string) => voi
     return () => controller.abort();
   }, [offset, attempt]);
 
-  if (loading && !page) {
-    return (
-      <section className="history">
-        <h3 className="history-heading">Past tests</h3>
-        <p className="history-note" role="status">
-          Loading your past tests…
-        </p>
-      </section>
-    );
-  }
-
   if (error) {
     return (
       <section className="history">
@@ -68,7 +57,7 @@ export default function PastTestsTable({ onOpen }: { onOpen: (id: string) => voi
   const tests = page?.tests ?? [];
   const total = page?.total ?? 0;
 
-  if (!total) {
+  if (!loading && page && !total) {
     return (
       <section className="history">
         <h3 className="history-heading">Past tests</h3>
@@ -80,64 +69,97 @@ export default function PastTestsTable({ onOpen }: { onOpen: (id: string) => voi
     );
   }
 
+  // Before the first page lands there are no rows, so stand in placeholder rows
+  // of the right height under the overlay to keep the table from jumping.
+  const skeleton = !page;
   const first = offset + 1;
   const last = offset + tests.length;
 
   return (
-    <section className="history">
+    <section className="history" aria-busy={loading}>
       <div className="history-head">
         <h3 className="history-heading">Past tests</h3>
-        <span className="history-range">
-          {first}–{last} of {total.toLocaleString()}
-        </span>
+        {page && (
+          <span className="history-range">
+            {first}–{last} of {total.toLocaleString()}
+          </span>
+        )}
       </div>
 
-      <table className="history-table">
-        <caption className="sr-only">
-          Your past practice tests, most recent first. Choose one to review it.
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Taken</th>
-            <th scope="col">Questions</th>
-            <th scope="col">Answered</th>
-            <th scope="col">Time</th>
-            <th scope="col">
-              <span className="sr-only">Review</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {tests.map(test => {
-            const taken = whenTaken(test.finishedAt);
-            return (
-              <tr key={test.id}>
-                <th scope="row">
-                  <button type="button" className="history-open" onClick={() => onOpen(test.id)}>
-                    <span className="history-date">{taken.date}</span>
-                    <span className="history-time">{taken.time}</span>
-                  </button>
-                </th>
-                {/* The label reads after the number on a narrow screen, where
-                    the column headings are not shown. */}
-                <td className="history-number" data-label="questions">
-                  {test.questionCount}
-                </td>
-                <td className="history-number" data-label="answered">
-                  {test.answeredCount}
-                </td>
-                <td className="history-number">
-                  {formatDuration(test.usedSeconds)}
-                  {test.expired && <span className="history-flag">ran out</span>}
-                </td>
-                <td className="history-chevron">
-                  <ChevronRight size={16} aria-hidden="true" />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="history-table-wrap">
+        <table className="history-table">
+          <caption className="sr-only">
+            Your past practice tests, most recent first. Choose one to review it.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Taken</th>
+              <th scope="col">Questions</th>
+              <th scope="col">Answered</th>
+              <th scope="col">Time</th>
+              <th scope="col">
+                <span className="sr-only">Review</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {skeleton
+              ? Array.from({ length: PAGE_SIZE }).map((_, row) => (
+                  <tr key={row} className="history-skeleton" aria-hidden="true">
+                    <th scope="row">
+                      <span className="skeleton-bar" />
+                    </th>
+                    <td className="history-number">
+                      <span className="skeleton-bar" />
+                    </td>
+                    <td className="history-number">
+                      <span className="skeleton-bar" />
+                    </td>
+                    <td className="history-number">
+                      <span className="skeleton-bar" />
+                    </td>
+                    <td className="history-chevron">
+                      <ChevronRight size={16} aria-hidden="true" />
+                    </td>
+                  </tr>
+                ))
+              : tests.map(test => {
+                  const taken = whenTaken(test.finishedAt);
+                  return (
+                    <tr key={test.id}>
+                      <th scope="row">
+                        <button type="button" className="history-open" onClick={() => onOpen(test.id)}>
+                          <span className="history-date">{taken.date}</span>
+                          <span className="history-time">{taken.time}</span>
+                        </button>
+                      </th>
+                      {/* The label reads after the number on a narrow screen,
+                          where the column headings are not shown. */}
+                      <td className="history-number" data-label="questions">
+                        {test.questionCount}
+                      </td>
+                      <td className="history-number" data-label="answered">
+                        {test.answeredCount}
+                      </td>
+                      <td className="history-number">
+                        {formatDuration(test.usedSeconds)}
+                        {test.expired && <span className="history-flag">ran out</span>}
+                      </td>
+                      <td className="history-chevron">
+                        <ChevronRight size={16} aria-hidden="true" />
+                      </td>
+                    </tr>
+                  );
+                })}
+          </tbody>
+        </table>
+
+        {loading && (
+          <div className="history-overlay" role="status" aria-label="Loading your past tests">
+            <Loader2 className="spinner" size={22} aria-hidden="true" />
+          </div>
+        )}
+      </div>
 
       {total > PAGE_SIZE && (
         <div className="history-pager">
