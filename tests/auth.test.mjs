@@ -317,6 +317,36 @@ test('authenticate requires a live session that matches the token', async () => 
   );
 });
 
+test('an address approved in the store is admitted even when the env list omits it', async () => {
+  const { user, session } = signedInFixture({ email: 'approved@example.com' });
+  const store = fakeStore({ user, session });
+  const accessStore = {
+    async isApproved(email) {
+      return email.trim().toLowerCase() === 'approved@example.com';
+    },
+  };
+  const cookie = await sessionCookie(
+    { userId: user._id, sessionId: session._id },
+    session.expiresAt,
+  );
+
+  // The env list alone does not name this address, so it is refused.
+  assert.equal(await authenticate({ config: config(), store }, { cookie }), null);
+  // Approved in the store, the same request is admitted — no redeploy, no env change.
+  assert.ok(await authenticate({ config: config(), store, accessStore }, { cookie }));
+  // An address the store has not approved stays out even with a store present.
+  const stranger = signedInFixture({ email: 'stranger@example.com' });
+  const strangerStore = fakeStore({ user: stranger.user, session: stranger.session });
+  const strangerCookie = await sessionCookie(
+    { userId: stranger.user._id, sessionId: stranger.session._id },
+    stranger.session.expiresAt,
+  );
+  assert.equal(
+    await authenticate({ config: config(), store: strangerStore, accessStore }, { cookie: strangerCookie }),
+    null,
+  );
+});
+
 test('who am I returns only public fields, and slides a half-spent session', async () => {
   const { user, session } = signedInFixture();
   const store = fakeStore({ user, session });

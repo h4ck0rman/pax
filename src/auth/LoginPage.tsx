@@ -1,6 +1,8 @@
+import { useState, type FormEvent } from 'react';
 import { ArrowLeft, CalendarRange, ClipboardCopy, Clock3 } from 'lucide-react';
 import GoogleMark from './GoogleMark';
 import VineArt from './VineArt';
+import { requestAccess } from '../access/api';
 
 /** Reasons the callback can hand back. Deliberately vague about why a
  *  particular address was refused. */
@@ -31,8 +33,29 @@ const FEATURES = [
   },
 ];
 
+type RequestState = 'idle' | 'sending' | 'sent' | 'error';
+
 export default function LoginPage({ reason }: { reason: string | null }) {
   const message = reason ? (MESSAGES[reason] ?? MESSAGES.google) : null;
+
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<RequestState>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const busy = state === 'sending';
+
+  async function handleRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    setState('sending');
+    setError(null);
+    try {
+      await requestAccess(email.trim());
+      setState('sent');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not send your request.');
+      setState('error');
+    }
+  }
 
   return (
     <div className="login">
@@ -74,6 +97,45 @@ export default function LoginPage({ reason }: { reason: string | null }) {
             By continuing, you agree to the <a href="/terms">terms of use</a> and the{' '}
             <a href="/privacy">privacy policy</a>.
           </p>
+
+          {/* Request access. The divider is a short rule, not a full-width line,
+              just enough to set this apart from the sign-in action above. */}
+          <form className="login-request" onSubmit={handleRequest}>
+            <hr className="login-request-rule" />
+            {state === 'sent' ? (
+              <p className="login-request-done" role="status">
+                Thanks — your request is in. We&rsquo;ll let you in once it&rsquo;s approved.
+              </p>
+            ) : (
+              <>
+                <label className="login-request-label" htmlFor="access-email">
+                  Not invited yet? Join the access list.
+                </label>
+                <div className="login-request-row">
+                  <input
+                    id="access-email"
+                    className="login-request-input"
+                    type="email"
+                    name="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={event => setEmail(event.target.value)}
+                    disabled={busy}
+                  />
+                  <button className="login-request-button" type="submit" disabled={busy}>
+                    {busy ? 'Sending…' : 'Join'}
+                  </button>
+                </div>
+                {state === 'error' && error && (
+                  <p className="login-error login-request-error" role="alert">
+                    {error}
+                  </p>
+                )}
+              </>
+            )}
+          </form>
 
           <ul className="login-features">
             {FEATURES.map(({ icon: Icon, title, detail }) => (

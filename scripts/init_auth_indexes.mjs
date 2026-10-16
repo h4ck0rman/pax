@@ -22,6 +22,13 @@ try {
   // Past tests: every query is "this person's sittings, newest first".
   await db.collection('tests').createIndex({ userId: 1, finishedAt: -1 }, { name: 'userId_finishedAt' });
 
+  // Access requests: the email is the _id, so uniqueness is already given; this
+  // only speeds listing the queue by status.
+  await db.collection('access_requests').createIndex(
+    { status: 1, requestedAt: 1 },
+    { name: 'status_requestedAt' },
+  );
+
   // Questions: every read filters on structural_status, optionally narrows to a
   // paper year, and then pages by _id. Without this a deployment pointed at a
   // database someone else imported scans the collection on every request.
@@ -31,7 +38,7 @@ try {
   );
   await db.collection('questions').createIndex({ structural_status: 1, _id: 1 }, { name: 'structural_status_1__id_1' });
 
-  for (const name of ['users', 'sessions', 'tests', 'questions']) {
+  for (const name of ['users', 'sessions', 'tests', 'questions', 'access_requests']) {
     const indexes = await db.collection(name).indexes();
     console.log(`${name}: ${indexes.map(index => index.name).join(', ')}`);
   }

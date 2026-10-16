@@ -59,6 +59,34 @@ function store({ revoked = false } = {}) {
   };
 }
 
+/** In-memory stand-in for the access-request collection. */
+function accessStore() {
+  const requests = [];
+  return {
+    requests,
+    async createRequest({ email, name }) {
+      const _id = email.trim().toLowerCase();
+      const record = {
+        _id,
+        email: _id,
+        name: name ?? null,
+        status: 'pending',
+        requestedAt: new Date(),
+        decidedAt: null,
+        decidedBy: null,
+      };
+      requests.push(record);
+      return record;
+    },
+    async isApproved() {
+      return false;
+    },
+    async listByStatus() {
+      return requests;
+    },
+  };
+}
+
 /** In-memory stand-in for the past tests collection. */
 function historyStore() {
   const saved = [];
@@ -80,6 +108,7 @@ async function start({ revoked = false } = {}) {
   let queries = 0;
   const asked = [];
   const history = historyStore();
+  const access = accessStore();
   const server = createProductionServer({
     dist: resolve('dist'),
     store: {
@@ -90,6 +119,7 @@ async function start({ revoked = false } = {}) {
       },
     },
     history,
+    access,
     auth: { config, store: store({ revoked }) },
     secure: false,
   });
@@ -98,6 +128,7 @@ async function start({ revoked = false } = {}) {
   return {
     base,
     history,
+    access,
     asked,
     get queries() {
       return queries;
@@ -226,6 +257,40 @@ test('the signed-in API still validates its inputs', async () => {
     const post = await fetch(app.base + '/api/questions', { method: 'POST', headers });
     assert.equal(post.status, 405);
     assert.equal((await fetch(app.base + '/api/unknown', { headers })).status, 404);
+  } finally {
+    await app.stop();
+  }
+});
+
+test('the access-request form is public, POST-only, and validates the address', async () => {
+  const app = await start();
+  try {
+    // Public: reachable with no session, unlike every other data route.
+    const getter = await fetch(app.base + '/api/access-requests');
+    assert.equal(getter.status, 405);
+    assert.equal(app.access.requests.length, 0);
+
+    // A malformed address is refused and never recorded.
+    for (const email of ['', 'not-an-email', 'a@b']) {
+      const response = await fetch(app.base + '/api/access-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      assert.equal(response.status, 400, JSON.stringify(email));
+    }
+    assert.equal(app.access.requests.length, 0);
+
+    // A real address is accepted with no session and recorded as pending.
+    const ok = await fetch(app.base + '/api/access-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'Newcomer@Example.com', name: 'New Comer' }),
+    });
+    assert.equal(ok.status, 200);
+    assert.equal(app.access.requests.length, 1);
+    assert.equal(app.access.requests[0].email, 'newcomer@example.com');
+    assert.equal(app.access.requests[0].status, 'pending');
   } finally {
     await app.stop();
   }

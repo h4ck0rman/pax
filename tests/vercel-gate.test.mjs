@@ -40,6 +40,13 @@ test('the shell and the sign-in routes are public', async () => {
   }
 });
 
+test('the access-request form is public at the perimeter', async () => {
+  process.env.SESSION_SECRET = SECRET;
+  const response = await call('/api/access-requests');
+  assert.ok(passedThrough(response), '/api/access-requests should pass through');
+  assert.match(response.headers.get('cache-control'), /no-store/);
+});
+
 test('other API paths are closed without a usable token', async () => {
   process.env.SESSION_SECRET = SECRET;
   const forged = [

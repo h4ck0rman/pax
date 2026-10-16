@@ -4,8 +4,10 @@ import { SESSION_COOKIE, readCookie, verifySessionToken } from './server/auth/to
 export const config = { matcher: '/:path*', runtime: 'nodejs' };
 
 /** The app shell is public, because the sign-in page is part of it. Everything
- *  under /api is closed except the sign-in routes themselves. */
+ *  under /api is closed except the sign-in routes and the access-request form,
+ *  which is how someone not yet on the allowlist asks to be let in. */
 const PUBLIC_API_PREFIX = '/api/auth/';
+const PUBLIC_API_PATHS = new Set(['/api/access-requests']);
 
 /** A cheap perimeter: signature and expiry only, with no database call, so a
  *  request without a usable token never reaches a function. The functions still
@@ -15,7 +17,11 @@ export default async function middleware(request: Request) {
   const headers = { 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
   const { pathname } = new URL(request.url);
 
-  if (!pathname.startsWith('/api/') || pathname.startsWith(PUBLIC_API_PREFIX)) {
+  if (
+    !pathname.startsWith('/api/') ||
+    pathname.startsWith(PUBLIC_API_PREFIX) ||
+    PUBLIC_API_PATHS.has(pathname)
+  ) {
     return next({ headers });
   }
 

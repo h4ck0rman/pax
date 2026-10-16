@@ -59,7 +59,8 @@ python scripts/verify_question_api.py          # compares a running dev server a
 Deployment:
 
 ```powershell
-node scripts/init_auth_indexes.mjs                              # once per database: users, sessions, tests
+node scripts/init_auth_indexes.mjs                              # once per database: users, sessions, tests, access_requests
+node scripts/approve_access.mjs list                            # pending access requests; approve <email> / deny <email>
 python scripts/generate_vine_art.py                             # redraw the sign-in artwork
 node scripts/configure_vercel.mjs https://pax-eosin.vercel.app  # upload settings; origin is an argument
 node scripts/verify_deployment.mjs https://pax-eosin.vercel.app # check the live posture, signing nobody in
@@ -132,7 +133,33 @@ all: `config.ts` reads and validates settings, `google.ts` does the OAuth
 exchange and verifies Google's identity token, `tokens.ts` signs and verifies the
 session token and serialises cookies, `store.ts` keeps users and sessions in
 MongoDB, and `routes.ts` holds transport-free handlers plus the one
-`authenticate()` gate. Adapters are thin: `server/auth/vercel.ts` for Vercel,
+`authenticate()` gate.
+
+**The allowlist has two sources, resolved by `addressAllowed` in
+`server/auth/routes.ts`.** It admits an address if `emailAllowed` (the env
+`ALLOWED_EMAILS`/`ALLOWED_DOMAIN` check in `config.ts`) passes, or failing that
+if `server/access/store.ts`'s `isApproved` finds an `approved` row in the
+`access_requests` collection. The env check runs first and without a database
+call, so a configured admin is the break-glass that works even when Atlas is
+empty or down; everyone else is admitted by approval, effective on their next
+request with no redeploy. Both call sites — `completeSignIn` and every
+`authenticate()` — go through `addressAllowed`, so it is `async`. Keep it
+fail-closed: both sources are per-address, never a wildcard. `config.ts` still
+refuses to start with neither env list set, so there is always a break-glass
+address even though the DB is now a source.
+
+**Requesting access is a public endpoint, implemented three times.** `POST
+/api/access-requests` (handler in `server/access/routes.ts`) records a `pending`
+row and is the only `/api` path besides `/api/auth/*` that needs no session. Like
+the questions endpoint it is reimplemented per environment —
+`server/production.ts`, `api/access-requests.ts` (Vercel), and `vite.config.ts`
+(dev) — and `middleware.ts` exempts it by exact path. It answers identically
+whatever the address, so it never leaks who is on the list. `access_requests`
+uses the normalised email as `_id`, so it lines up with the address Google
+returns and a repeat request updates one record. Approve from the command line
+with `scripts/approve_access.mjs` (`list` / `approve <email>` / `deny <email>`);
+`approve` upserts, so you can invite someone who never used the form. The browser
+form lives on `src/auth/LoginPage.tsx` with its client in `src/access/api.ts`. Adapters are thin: `server/auth/vercel.ts` for Vercel,
 `server/production.ts` for the Node server, and `vite.config.ts` for development.
 Read `docs/authentication.md` before changing any of it.
 
@@ -214,9 +241,11 @@ adding the year did not require re-running extraction over `resources/`.
 - Pass anything unexpected through `describeError` from `server/log.ts` before
   logging it. MongoDB errors quote the connection string, credentials included,
   so logging a raw cause puts them in the deployment's logs.
-- Two allowlists gate sign-in and you need both. Google's **test users** list
-  decides whose account may pass the consent screen; `ALLOWED_EMAILS` decides whom
-  Pax admits afterwards. An address in only one of them fails, in different ways.
+- Pax's allowlist gates access. Google's **test users** list does not restrict
+  sign-in for the `openid email profile` scopes Pax requests: Google exempts
+  authentication-only requests from that restriction. `ALLOWED_EMAILS` or
+  `ALLOWED_DOMAIN` must admit the verified address; adding it in Google alone
+  does not grant access.
 - Browser tests run in three Playwright projects: `setup` mints a session,
   `anonymous` runs `*.anon.spec.ts` with no session, and `signed-in` runs the
   rest with a shared session. A test that signs out must mint its own session

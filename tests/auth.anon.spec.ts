@@ -157,8 +157,11 @@ test('the landing page sends you to the sign-in page, which starts Google', asyn
   );
   await expect(page.locator('.login-features li')).toHaveCount(3);
   await expect(page.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/');
-  // There is no password to type anywhere.
-  await expect(page.locator('input')).toHaveCount(0);
+  // There is no password to type anywhere: the only field is the access-request
+  // email, which signs nobody in on its own.
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.locator('#access-email')).toHaveAttribute('type', 'email');
+  await expect(page.getByRole('button', { name: 'Join' })).toBeVisible();
 });
 
 test('a refused account is told so on the sign-in page', async ({ page }) => {

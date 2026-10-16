@@ -15,6 +15,8 @@ import {
 import { SESSION_COOKIE, serialiseCookie, signSessionToken } from './server/auth/tokens';
 import { mongoHistoryStore } from './server/history/store';
 import { handleHistoryRequest } from './server/history/routes';
+import { mongoAccessStore } from './server/access/store';
+import { handleAccessRequest } from './server/access/routes';
 import { SESSION_TTL_MS } from './server/auth/store';
 
 const DEV_SIGN_IN_PATH = '/api/auth/dev-sign-in';
@@ -130,6 +132,19 @@ function paxApi(env: Record<string, string>): Plugin {
         }
         for (const [name, value] of Object.entries(result.headers)) res.setHeader(name, value);
         res.statusCode = result.status;
+        res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
+        return;
+      }
+
+      // Public: how someone not yet on the allowlist asks to be added. No
+      // session required, so it sits ahead of the authenticated endpoints.
+      if (request.path === '/api/access-requests') {
+        const result = await handleAccessRequest(mongoAccessStore(auth.config), {
+          method: request.method,
+          body: await readJsonBody(req),
+        });
+        res.statusCode = result.status;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
         return;
       }

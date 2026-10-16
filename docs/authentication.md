@@ -32,24 +32,61 @@ days that is never extended. Expired records are removed by a MongoDB index.
 | `SESSION_SECRET` | yes | Signs session tokens. At least 32 characters. Changing it signs everyone out. |
 | `GOOGLE_CLIENT_ID` | to sign in | OAuth client id. |
 | `GOOGLE_CLIENT_SECRET` | to sign in | OAuth client secret. |
-| `ALLOWED_EMAILS` | one of these | Comma-separated addresses permitted to sign in. |
+| `ALLOWED_EMAILS` | one of these | Comma-separated addresses permitted to sign in. Also the break-glass: these admit even when the database is empty or unreachable. |
 | `ALLOWED_DOMAIN` | one of these | A single domain permitted to sign in, without the at sign. |
 | `PUBLIC_ORIGIN` | with Google | The origin this deployment is reached on, such as `https://pax-eosin.vercel.app`. Pins the redirect URI and decides whether cookies carry `Secure`. |
 | `MONGODB_URI`, `MONGODB_DATABASE` | yes | Where users, sessions and questions live. |
 
-With neither `ALLOWED_EMAILS` nor `ALLOWED_DOMAIN`, Pax refuses every sign-in.
-It never treats an empty allowlist as "allow anyone". A missing or short
-`SESSION_SECRET` makes protected routes answer 503 rather than opening up.
+With neither `ALLOWED_EMAILS` nor `ALLOWED_DOMAIN`, Pax refuses to start, so a
+deployment always has at least one break-glass address. It never treats an empty
+allowlist as "allow anyone". A missing or short `SESSION_SECRET` makes protected
+routes answer 503 rather than opening up.
+
+**The allowlist has two sources, checked in order.** `addressAllowed` in
+`server/auth/routes.ts` admits an address if the env lists it, or failing that
+if it has been approved in the `access_requests` collection. The env list is
+checked first and without a database call, so a configured admin signs in even
+when Atlas is empty or unreachable. Everyone else is admitted by approval, which
+takes effect on their next request with no redeploy. Both sources are
+per-address, so an empty env list and an empty collection still admit nobody.
+
+## Requesting and approving access
+
+The sign-in page carries a short "Join the access list" form that posts an email
+to the public `POST /api/access-requests` endpoint, which records it in
+`access_requests` as `pending`. The endpoint answers the same way whether the
+address is new, already waiting, or already approved, so it never reveals who is
+on the list. It is the one `/api` path besides `/api/auth/*` that does not
+require a session; `middleware.ts` exempts it by exact path.
+
+Approve from the command line against the database the deployment uses:
+
+```powershell
+node scripts/approve_access.mjs list              # the pending queue
+node scripts/approve_access.mjs list all          # or pending | approved | denied
+node scripts/approve_access.mjs approve someone@example.com
+node scripts/approve_access.mjs deny someone@example.com
+```
+
+`approve` upserts, so you can invite someone directly who never used the form.
+The normalised email is the record `_id`, so it matches the address Google
+returns at sign-in; a repeat request updates the one record rather than
+duplicating it. An already-approved address is never knocked back into the
+queue by a fresh request.
 
 `PUBLIC_ORIGIN` is required whenever a Google client is configured, and startup
 fails without it. Two things depend on it, and neither may come from a request
 header: the redirect URI handed to Google, and whether session cookies carry
 `Secure`. An `https` origin means cookies are issued `Secure` and HSTS is sent.
 
-**Two allowlists, and you need both.** Google's **test users** list decides whose
-Google account may pass the consent screen. `ALLOWED_EMAILS` decides whom Pax
-admits. Adding an address in Google alone gets you as far as
-"That account does not have access to this question bank".
+**Pax's allowlist controls access.** Google's **test users** list does not
+restrict this app's sign-ins: Pax requests only `openid`, `email` and `profile`,
+which Google exempts from the test-user restriction, warning screen and
+seven-day authorization expiry. See [Google's audience documentation](https://support.google.com/cloud/answer/15549945?hl=en).
+`ALLOWED_EMAILS` and `ALLOWED_DOMAIN` decide whom Pax admits. Adding an address
+in Google alone does not grant access to the question bank; an address missing
+from Pax's allowlist gets "That account does not have access to this question
+bank".
 
 Run the index setup once per database:
 
@@ -71,9 +108,10 @@ node scripts/init_auth_indexes.mjs
      require app verification.
    - **Privacy policy URL**: `https://YOUR-DOMAIN/privacy`
    - **Terms of service URL**: `https://YOUR-DOMAIN/terms`
-   - Leave **Publishing status** as **Testing** and add each person as a **Test
-     user**, up to 100. In testing mode Google shows an "unverified app" notice
-     but no review is needed, which suits a closed study group.
+   - You may leave **Publishing status** as **Testing**. With only these
+     sign-in scopes, Google does not require users to be listed as test users
+     and does not show the testing warning. Put invited addresses in Pax's
+     `ALLOWED_EMAILS` instead. Additional OAuth scopes may change this behavior.
 3. Go to **APIs & Services → Credentials → Create credentials → OAuth client
    ID**.
    - **Application type**: Web application.
@@ -140,9 +178,12 @@ DEV_AUTH_EMAIL=dev@pax.local
 ## Removing access
 
 - **One session**: the person signs out, or delete their `sessions` record.
-- **One person**: remove their address from the allowlist. Access ends at their
-  next request, because every protected request rechecks the allowlist. Delete
-  their `users` and `sessions` records to remove their data.
+- **One person**: remove their address from the allowlist. If they were approved
+  through the form, `node scripts/approve_access.mjs deny <email>` flips them, or
+  delete their `access_requests` record; if they were in `ALLOWED_EMAILS`, remove
+  them there. Access ends at their next request, because every protected request
+  rechecks the allowlist. Delete their `users` and `sessions` records to remove
+  their data.
 - **Everyone**: change `SESSION_SECRET`, which invalidates every token at once.
 
 ## Verifying a deployment

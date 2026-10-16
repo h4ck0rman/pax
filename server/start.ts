@@ -3,6 +3,7 @@ import { atlasQuestionStore } from './question-store.js';
 import { createProductionServer } from './production.js';
 import { resolveAuthDeps } from './auth/routes.js';
 import { mongoHistoryStore } from './history/store.js';
+import { mongoAccessStore } from './access/store.js';
 import { AuthConfigError } from './auth/config.js';
 import { closeAll } from './mongo.js';
 
@@ -21,6 +22,7 @@ const server = createProductionServer({
   dist: fileURLToPath(new URL('../dist/', import.meta.url)),
   store,
   history: mongoHistoryStore(auth.config),
+  access: mongoAccessStore(auth.config),
   auth,
 });
 

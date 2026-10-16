@@ -7,6 +7,8 @@ import { authenticate, handleAuthRequest, type AuthDeps, type AuthRequest } from
 import { secureCookiesFor } from './auth/config.js';
 import { handleHistoryRequest } from './history/routes.js';
 import type { HistoryStore } from './history/store.js';
+import { handleAccessRequest } from './access/routes.js';
+import type { AccessStore } from './access/store.js';
 
 type Store = { query: (params: QuestionQuery) => Promise<unknown> };
 
@@ -79,6 +81,7 @@ export function createProductionServer(config: {
   dist: string;
   store: Store;
   history: HistoryStore;
+  access: AccessStore;
   auth: AuthDeps;
   /** Overrides the transport decision. Only tests should need this. */
   secure?: boolean;
@@ -110,6 +113,19 @@ export function createProductionServer(config: {
           return;
         }
         for (const [name, value] of Object.entries(result.headers)) res.setHeader(name, value);
+        res.statusCode = result.status;
+        res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
+        return;
+      }
+
+      // Public: how someone not yet on the allowlist asks to be added. Sits
+      // ahead of the authenticated routes, with no session check.
+      if (request.path === '/api/access-requests') {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        const result = await handleAccessRequest(config.access, {
+          method: request.method,
+          body: await readJsonBody(req),
+        });
         res.statusCode = result.status;
         res.end(result.body === undefined ? undefined : JSON.stringify(result.body));
         return;

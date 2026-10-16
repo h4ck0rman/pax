@@ -118,6 +118,87 @@
   color: var(--ink);
 }
 
+/* Request access: a short divider, then an email field and a confirm button
+   on one line. The rule is intentionally narrow, not a full-width band. */
+.login-request {
+  margin-top: var(--space-6);
+}
+
+.login-request-rule {
+  width: 48px;
+  height: 1px;
+  margin: 0 0 var(--space-5);
+  border: 0;
+  background: var(--line-strong);
+}
+
+.login-request-label {
+  display: block;
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.login-request-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.login-request-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-md);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.login-request-input:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: var(--shadow-card);
+}
+
+.login-request-button {
+  flex-shrink: 0;
+  min-height: 46px;
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--on-ink);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow var(--duration) var(--ease), opacity var(--duration) var(--ease);
+}
+
+.login-request-button:hover {
+  box-shadow: var(--shadow-card);
+}
+
+.login-request-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+.login-request-done {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.login-request-error {
+  margin-top: var(--space-3);
+}
+
 .login-note {
   margin-top: var(--space-5);
   padding-top: var(--space-4);

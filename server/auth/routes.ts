@@ -26,6 +26,7 @@ import {
   type SessionRecord,
   type UserRecord,
 } from './store.js';
+import { mongoAccessStore, type AccessStore } from '../access/store.js';
 
 export const CALLBACK_PATH = '/api/auth/google/callback';
 /** Where a failed sign-in is sent back to, so the reader lands on the button. */
@@ -53,6 +54,10 @@ export type AuthResponse = {
 export type AuthDeps = {
   config: AuthConfig;
   store: AuthStore;
+  /** The DB-backed allowlist: addresses an operator has approved. Optional so a
+   *  hand-built deps object can omit it; production always sets it, and without
+   *  it only the env allowlist admits anyone. */
+  accessStore?: AccessStore;
   fetchImpl?: typeof fetch;
   /** Overridden in tests so the success path can run without Google. */
   exchange?: typeof exchangeCodeForProfile;
@@ -73,7 +78,7 @@ const redirect = (location: string, headers: Record<string, string | string[]> =
 export function resolveAuthDeps(env: NodeJS.ProcessEnv = process.env): AuthDeps | AuthConfigError {
   try {
     const config = readAuthConfig(env);
-    return { config, store: mongoAuthStore(config) };
+    return { config, store: mongoAuthStore(config), accessStore: mongoAccessStore(config) };
   } catch (cause) {
     return cause instanceof AuthConfigError ? cause : new AuthConfigError('Auth is misconfigured');
   }
@@ -88,6 +93,16 @@ function callbackUri(config: AuthConfig): string | null {
 }
 
 export type Authenticated = { user: UserRecord; session: SessionRecord };
+
+/** Whether an address may sign in. The env allowlist is checked first and
+ *  synchronously, so a configured address always gets in even if the store is
+ *  empty or unreachable — it is the break-glass. Anyone else must have been
+ *  approved into the access-request store. Still fail-closed: an empty env list
+ *  and an empty store admit nobody, and every check is per-address. */
+export async function addressAllowed(deps: AuthDeps, email: string): Promise<boolean> {
+  if (emailAllowed(deps.config, email)) return true;
+  return deps.accessStore ? deps.accessStore.isApproved(email) : false;
+}
 
 /** The single gate every protected route goes through: a valid signature, and a
  *  session record that is still live on the server. */
@@ -108,7 +123,7 @@ export async function authenticate(
   if (!user) return null;
 
   // A person removed from the allowlist loses access at their next request.
-  if (!emailAllowed(deps.config, user.email)) return null;
+  if (!(await addressAllowed(deps, user.email))) return null;
 
   return { user, session };
 }
@@ -167,7 +182,7 @@ async function completeSignIn(deps: AuthDeps, request: AuthRequest): Promise<Aut
     return failure(cause instanceof GoogleAuthError ? 'google' : 'google');
   }
 
-  if (!emailAllowed(deps.config, profile.email)) return failure('not_allowed');
+  if (!(await addressAllowed(deps, profile.email))) return failure('not_allowed');
 
   const user = await deps.store.upsertUser({
     googleSubject: profile.subject,
